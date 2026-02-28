@@ -12,11 +12,11 @@ class AgentWallet {
   /**
    * Create a new wallet for an agent
    */
-  async createWallet(agentName) {
+  async createWallet(agentName, chain = 'base-sepolia', walletType = 'eoa') {
     const res = await fetch(`${this.baseUrl}/wallet/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agentName })
+      body: JSON.stringify({ agentName, chain, walletType })
     });
     return res.json();
   }
@@ -42,6 +42,30 @@ class AgentWallet {
   }
 
   /**
+   * Submit an ERC-4337 user operation
+   */
+  async sendUserOperation(from, to, value = '0', chain, data = '0x') {
+    const res = await fetch(`${this.baseUrl}/wallet/${from}/user-operation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, value, chain, data })
+    });
+    return res.json();
+  }
+
+  /**
+   * Check if a wallet is currently sponsorship-eligible
+   */
+  async checkSponsorshipPolicy(address, value = '0', chain, operationType = 'transfer') {
+    const res = await fetch(`${this.baseUrl}/wallet/${address}/sponsorship-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value, chain, operationType })
+    });
+    return res.json();
+  }
+
+  /**
    * List all wallets
    */
   async listWallets() {
@@ -59,22 +83,3 @@ class AgentWallet {
 }
 
 export default AgentWallet;
-
-// Usage example:
-/*
-import AgentWallet from './sdk.js';
-
-const wallet = new AgentWallet();
-
-// Create wallet
-const { wallet: w } = await wallet.createWallet('MyAgent');
-console.log('Address:', w.address);
-
-// Check balance
-const bal = await wallet.getBalance(w.address);
-console.log('Balance:', bal.balance.eth, 'ETH');
-
-// Send transaction
-const tx = await wallet.send(w.address, '0x...', '0.001');
-console.log('Tx:', tx.transaction.hash);
-*/

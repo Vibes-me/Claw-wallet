@@ -12,11 +12,11 @@ const API = 'http://localhost:3000';
 // WALLET COMMANDS
 // ============================================================
 
-async function createWallet(name, chain = 'base-sepolia') {
+async function createWallet(name, chain = 'base-sepolia', walletType = 'eoa') {
   const res = await fetch(`${API}/wallet/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agentName: name, chain })
+    body: JSON.stringify({ agentName: name, chain, walletType })
   });
   return res.json();
 }
@@ -48,6 +48,24 @@ async function sendTransaction(from, to, value, chain) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to, value, chain })
+  });
+  return res.json();
+}
+
+async function submitUserOperation(from, to, value, chain, data = '0x') {
+  const res = await fetch(`${API}/wallet/${from}/user-operation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, value, chain, data })
+  });
+  return res.json();
+}
+
+async function checkSponsorship(from, value, chain, operationType = 'transfer') {
+  const res = await fetch(`${API}/wallet/${from}/sponsorship-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value, chain, operationType })
   });
   return res.json();
 }
@@ -130,19 +148,20 @@ async function main() {
   switch (cmd) {
     // ============ WALLET COMMANDS ============
     case 'create': {
-      const [name, chain] = args;
+      const [name, chain, walletType] = args;
       if (!name) {
-        console.log('Usage: cli.js create <name> [chain]');
+        console.log('Usage: cli.js create <name> [chain] [walletType]');
         console.log('Chains: base-sepolia, ethereum, polygon, optimism, arbitrum...');
         break;
       }
-      console.log(`Creating wallet for ${name} on ${chain || 'base-sepolia'}...`);
-      const result = await createWallet(name, chain);
+      console.log(`Creating ${walletType || 'eoa'} wallet for ${name} on ${chain || 'base-sepolia'}...`);
+      const result = await createWallet(name, chain, walletType);
       if (result.success) {
         console.log(`✅ Wallet created!`);
         console.log(`   Address: ${result.wallet.address}`);
         console.log(`   ID: ${result.wallet.id}`);
         console.log(`   Chain: ${result.wallet.chain}`);
+        console.log(`   Type: ${result.wallet.walletType}`);
       } else {
         console.log(`❌ Error: ${result.error}`);
       }
@@ -280,7 +299,7 @@ async function main() {
       if (result.wallets?.length > 0) {
         console.log(`Found ${result.count} wallet(s):`);
         result.wallets.forEach(w => {
-          console.log(`   - ${w.agentName}: ${w.address} (${w.chain})`);
+          console.log(`   - ${w.agentName}: ${w.address} (${w.chain}, ${w.walletType || 'eoa'})`);
         });
       } else {
         console.log('No wallets found.');
@@ -302,6 +321,40 @@ async function main() {
       break;
     }
     
+    case 'userop': {
+      const [from, to, value = '0', chain, data] = args;
+      if (!from || !to) {
+        console.log('Usage: cli.js userop <from> <to> [value] [chain] [data]');
+        break;
+      }
+      const result = await submitUserOperation(from, to, value, chain, data);
+      if (result.success) {
+        console.log('✅ User operation submitted!');
+        console.log(`   UserOpHash: ${result.userOperation.userOpHash}`);
+        console.log(`   Sponsored: ${result.userOperation.sponsorship.sponsored}`);
+      } else {
+        console.log(`❌ Error: ${result.error}`);
+      }
+      break;
+    }
+
+    case 'sponsor-check': {
+      const [from, value = '0', chain, operationType] = args;
+      if (!from) {
+        console.log('Usage: cli.js sponsor-check <address> [value] [chain] [operationType]');
+        break;
+      }
+      const result = await checkSponsorship(from, value, chain, operationType);
+      if (result.success) {
+        console.log('Sponsorship Policy:');
+        console.log(`   Eligible: ${result.sponsorship.sponsored}`);
+        console.log(`   Reason: ${result.sponsorship.reason}`);
+      } else {
+        console.log(`❌ Error: ${result.error}`);
+      }
+      break;
+    }
+
     // ============ IDENTITY COMMANDS ============
     case 'identity': {
       const subCmd = args[0];
@@ -419,7 +472,7 @@ async function main() {
     default:
       console.log('Commands:\n');
       console.log('  WALLET');
-      console.log('  create <name> [chain]       Create a new wallet');
+      console.log('  create <name> [chain] [type] Create a new wallet');
       console.log('  import <key> <name> [chain] Import wallet from private key');
       console.log('  balance <address> [chain]   Check wallet balance');
       console.log('  balances <address>          Balance across all chains');
@@ -429,6 +482,8 @@ async function main() {
       console.log('  tx <hash> [chain]           Get transaction status');
       console.log('  list                        List all wallets');
       console.log('  chains                      List supported chains');
+      console.log('  userop <from> <to> [val]    Submit ERC-4337 user operation');
+      console.log('  sponsor-check <addr> [val]  Check paymaster sponsorship');
       console.log('');
       console.log('  IDENTITY (ERC-8004)');
       console.log('  identity create <wallet> <name> [type]  Create agent identity');

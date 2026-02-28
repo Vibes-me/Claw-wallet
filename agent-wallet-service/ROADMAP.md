@@ -26,7 +26,8 @@
 - [ ] Social recovery
 - [ ] Agent identity (ERC-8004)
 - [ ] IPFS metadata storage
-- [ ] Gasless transactions (ERC-4337)
+- [x] Gasless transactions foundation (ERC-4337 user operations + sponsorship checks)
+- [ ] Production bundler failover and paymaster policy engine
 
 ## 🌐 Phase 4: Distribution
 - [ ] Python SDK
@@ -51,3 +52,8 @@
 
 ## Positioning
 > "Add a wallet to any agent in 60 seconds. No SDKs, no key management, no contract deployment."
+
+## Account Abstraction Tradeoffs (Current)
+- **Latency:** AA adds an additional bundler + entry point path, so end-to-end confirmation is slower than direct EOA sends.
+- **Dependency:** AA reliability now depends on external bundler/paymaster availability and policy sync.
+- **Chain support:** AA is currently scoped to a subset of chains while provider compatibility matures (`base-sepolia`, `base`, `ethereum-sepolia`, `optimism-sepolia`).

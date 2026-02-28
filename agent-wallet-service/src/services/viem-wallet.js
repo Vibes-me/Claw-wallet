@@ -72,6 +72,8 @@ const CHAINS = {
   }
 };
 
+const WALLET_TYPES = ['eoa', 'smart-account'];
+
 // Default chain
 const DEFAULT_CHAIN = 'base-sepolia';
 
@@ -84,6 +86,14 @@ function getChainConfig(chainName) {
     throw new Error(`Unsupported chain: ${chainName}. Supported: ${Object.keys(CHAINS).join(', ')}`);
   }
   return config;
+}
+
+function normalizeWalletType(walletType = 'eoa') {
+  if (!WALLET_TYPES.includes(walletType)) {
+    throw new Error(`Unsupported walletType: ${walletType}. Supported: ${WALLET_TYPES.join(', ')}`);
+  }
+
+  return walletType;
 }
 
 /**
@@ -124,6 +134,10 @@ export function getSupportedChains() {
   }));
 }
 
+export function getSupportedWalletTypes() {
+  return [...WALLET_TYPES];
+}
+
 // Persist wallets to JSON file
 const WALLET_FILE = join(process.cwd(), 'wallets.json');
 
@@ -153,8 +167,9 @@ function generatePrivateKey() {
 /**
  * Create a new wallet for an AI agent
  */
-export async function createWallet({ agentName, chain = 'base-sepolia' }) {
+export async function createWallet({ agentName, chain = DEFAULT_CHAIN, walletType = 'eoa' }) {
   try {
+    const normalizedWalletType = normalizeWalletType(walletType);
     const privateKey = generatePrivateKey();
     const account = privateKeyToAccount(privateKey);
     const walletId = `wallet_${Date.now()}`;
@@ -165,6 +180,7 @@ export async function createWallet({ agentName, chain = 'base-sepolia' }) {
       address: account.address,
       privateKey: encrypt(privateKey), // Encrypted at rest
       chain,
+      walletType: normalizedWalletType,
       createdAt: new Date().toISOString()
     };
 
@@ -172,12 +188,13 @@ export async function createWallet({ agentName, chain = 'base-sepolia' }) {
     wallets.set(walletId, wallet);
     saveWallets(wallets);
 
-    console.log(`✅ Created wallet for ${agentName}: ${account.address}`);
+    console.log(`✅ Created ${normalizedWalletType} wallet for ${agentName}: ${account.address}`);
 
     return {
       id: walletId,
       address: account.address,
-      chain
+      chain,
+      walletType: normalizedWalletType
     };
   } catch (error) {
     console.error('Failed to create wallet:', error);
@@ -234,7 +251,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
     const decryptedKey = decrypt(wallet.privateKey);
     const account = privateKeyToAccount(decryptedKey);
     
-    const { client } = await createClientWithFallback(
+    await createClientWithFallback(
       { ...chainConfig, account }, 
       'wallet'
     );
@@ -307,6 +324,7 @@ export function getAllWallets() {
     agentName: w.agentName,
     address: w.address,
     chain: w.chain,
+    walletType: w.walletType || 'eoa',
     createdAt: w.createdAt
   }));
 }
@@ -330,8 +348,10 @@ export function getWalletByAddress(address) {
 /**
  * Import an existing wallet from private key
  */
-export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAIN }) {
+export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAIN, walletType = 'eoa' }) {
   try {
+    const normalizedWalletType = normalizeWalletType(walletType);
+
     // Validate private key format
     if (!privateKey.startsWith('0x')) {
       privateKey = '0x' + privateKey;
@@ -346,6 +366,7 @@ export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAI
       address: account.address,
       privateKey: encrypt(privateKey), // Encrypted at rest
       chain,
+      walletType: normalizedWalletType,
       imported: true,
       createdAt: new Date().toISOString()
     };
@@ -360,6 +381,7 @@ export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAI
         id: existing.id,
         address: existing.address,
         chain: existing.chain,
+        walletType: existing.walletType || 'eoa',
         imported: false,
         message: 'Wallet already exists'
       };
@@ -368,12 +390,13 @@ export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAI
     wallets.set(walletId, wallet);
     saveWallets(wallets);
 
-    console.log(`✅ Imported wallet: ${account.address}`);
+    console.log(`✅ Imported ${normalizedWalletType} wallet: ${account.address}`);
 
     return {
       id: walletId,
       address: account.address,
       chain,
+      walletType: normalizedWalletType,
       imported: true
     };
   } catch (error) {

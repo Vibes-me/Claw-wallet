@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { 
   createWallet, getBalance, signTransaction, 
-  getAllWallets, getSupportedChains, importWallet,
-  getTransactionReceipt, getMultiChainBalance, 
+  getAllWallets, getSupportedChains, getSupportedWalletTypes, importWallet,
+  getTransactionReceipt, getMultiChainBalance, getWalletByAddress,
   estimateGas, sweepWallet
 } from '../services/viem-wallet.js';
+import { getAAProviderConfig, submitUserOperation, checkSponsorshipPolicy } from '../services/aa-provider.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
 
@@ -21,19 +22,20 @@ const router = Router();
  */
 router.post('/create', requireAuth('write'), async (req, res) => {
   try {
-    const { agentName, chain = 'base-sepolia' } = req.body;
+    const { agentName, chain = 'base-sepolia', walletType = 'eoa' } = req.body;
     
     if (!agentName) {
       return res.status(400).json({ error: 'agentName is required' });
     }
 
-    const wallet = await createWallet({ agentName, chain });
+    const wallet = await createWallet({ agentName, chain, walletType });
     res.json({
       success: true,
       wallet: {
         id: wallet.id,
         address: wallet.address,
-        chain: wallet.chain
+        chain: wallet.chain,
+        walletType: wallet.walletType
       }
     });
   } catch (error) {
@@ -48,13 +50,13 @@ router.post('/create', requireAuth('write'), async (req, res) => {
  */
 router.post('/import', requireAuth('write'), async (req, res) => {
   try {
-    const { privateKey, agentName, chain } = req.body;
+    const { privateKey, agentName, chain, walletType = 'eoa' } = req.body;
     
     if (!privateKey) {
       return res.status(400).json({ error: 'privateKey is required' });
     }
 
-    const wallet = await importWallet({ privateKey, agentName, chain });
+    const wallet = await importWallet({ privateKey, agentName, chain, walletType });
     res.json({
       success: true,
       wallet
@@ -92,6 +94,28 @@ router.get('/chains', (req, res) => {
     count: chains.length,
     chains 
   });
+});
+
+
+/**
+ * GET /wallet/wallet-types
+ * List supported wallet types
+ */
+router.get('/wallet-types', (req, res) => {
+  const walletTypes = getSupportedWalletTypes();
+  res.json({
+    default: 'eoa',
+    count: walletTypes.length,
+    walletTypes
+  });
+});
+
+/**
+ * GET /wallet/aa/config
+ * AA provider feature flag/config status
+ */
+router.get('/aa/config', (req, res) => {
+  res.json(getAAProviderConfig());
 });
 
 /**
@@ -151,6 +175,73 @@ router.post('/estimate-gas', async (req, res) => {
   }
 });
 
+
+/**
+ * POST /wallet/:address/user-operation
+ * Submit an ERC-4337 user operation
+ */
+router.post('/:address/user-operation', requireAuth('write'), async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { to, value = '0', data = '0x', chain } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ error: 'recipient address (to) is required' });
+    }
+
+    const wallet = getWalletByAddress(address);
+    if (!wallet) {
+      return res.status(404).json({ error: `Wallet not found: ${address}` });
+    }
+
+    const userOperation = await submitUserOperation({
+      from: address,
+      to,
+      value,
+      data,
+      chain: chain || wallet.chain,
+      walletType: wallet.walletType || 'eoa'
+    });
+
+    res.json({
+      success: true,
+      userOperation
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /wallet/:address/sponsorship-check
+ * Check if a user operation can be sponsored by paymaster policy
+ */
+router.post('/:address/sponsorship-check', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { chain, operationType = 'transfer', value = '0' } = req.body;
+
+    const wallet = getWalletByAddress(address);
+    if (!wallet) {
+      return res.status(404).json({ error: `Wallet not found: ${address}` });
+    }
+
+    const sponsorship = await checkSponsorshipPolicy({
+      chain: chain || wallet.chain,
+      walletType: wallet.walletType || 'eoa',
+      operationType,
+      value
+    });
+
+    res.json({
+      success: true,
+      sponsorship
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // ============================================================
 // DYNAMIC ROUTES (/:address)
 // ============================================================
@@ -173,6 +264,7 @@ router.get('/:address', async (req, res) => {
       agentName: wallet.agentName,
       address: wallet.address,
       chain: wallet.chain,
+      walletType: wallet.walletType || 'eoa',
       createdAt: wallet.createdAt
     });
   } catch (error) {
