@@ -1,0 +1,8 @@
+node_modules/
+.env
+wallets.json
+transactions.json
+*.log
+.DS_Store
+api-keys.json
+agent-identities.json
