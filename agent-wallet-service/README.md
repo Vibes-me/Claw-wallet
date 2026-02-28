@@ -117,6 +117,12 @@ On-chain identity for AI agents:
 - Role-based permissions (read/write/admin)
 - Rate limiting built-in
 
+### 🛡️ Policy Engine Guardrails
+
+- Per-wallet transfer limits (`perTxLimitEth`, `dailyLimitEth`)
+- Recipient allowlist/denylist
+- Policy simulation endpoint before sending funds
+
 ## Role-specific snippets
 
 ### 1) Backend API service (server-to-server)
@@ -310,3 +316,25 @@ First successful transaction on Base Sepolia:
 ---
 
 Built by Mr. Claw 🦞
+
+
+## Policy Example
+
+```bash
+# Set policy for a wallet
+curl -X PUT http://localhost:3000/wallet/policy/$FROM_WALLET \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{
+    "dailyLimitEth": "0.05",
+    "perTxLimitEth": "0.01",
+    "allowedRecipients": ["0xabc..."],
+    "blockedRecipients": []
+  }'
+
+# Check if a transfer would pass policy
+curl -X POST http://localhost:3000/wallet/policy/$FROM_WALLET/evaluate \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"to":"0xabc...","value":"0.005","chain":"base-sepolia"}'
+```

@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logTransaction } from './tx-history.js';
 import { encrypt, decrypt } from './encryption.js';
+import { evaluateTransferPolicy, recordPolicySpend } from './policy-engine.js';
 
 // ============================================================
 // MULTI-CHAIN CONFIG
@@ -229,6 +230,17 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
   const chainName = chain || wallet.chain || DEFAULT_CHAIN;
   const chainConfig = getChainConfig(chainName);
 
+  const policyEvaluation = evaluateTransferPolicy({
+    walletAddress: from,
+    to,
+    valueEth: value,
+    chain: chainName
+  });
+
+  if (!policyEvaluation.allowed) {
+    throw new Error(`Policy blocked transaction (${policyEvaluation.reason})`);
+  }
+
   try {
     // Decrypt private key for use
     const decryptedKey = decrypt(wallet.privateKey);
@@ -263,6 +275,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
       chain: chainName
     };
     logTransaction(txRecord);
+    recordPolicySpend({ walletAddress: from, valueEth: value });
 
     return {
       hash,
@@ -512,6 +525,18 @@ export async function sweepWallet({ from, to, chain }) {
     if (amountToSend <= 0n) {
       throw new Error('Insufficient balance to cover gas');
     }
+
+    const amountToSendEth = formatEther(amountToSend);
+    const policyEvaluation = evaluateTransferPolicy({
+      walletAddress: from,
+      to,
+      valueEth: amountToSendEth,
+      chain: chainName
+    });
+
+    if (!policyEvaluation.allowed) {
+      throw new Error(`Policy blocked sweep (${policyEvaluation.reason})`);
+    }
     
     // Create wallet client
     const account = privateKeyToAccount(decrypt(wallet.privateKey));
@@ -526,6 +551,15 @@ export async function sweepWallet({ from, to, chain }) {
       value: amountToSend,
       data: '0x'
     });
+
+    logTransaction({
+      hash,
+      from,
+      to,
+      value: amountToSendEth,
+      chain: chainName
+    });
+    recordPolicySpend({ walletAddress: from, valueEth: amountToSendEth });
     
     return {
       hash,

@@ -4,6 +4,7 @@ import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey, getOnboardingState } from './middleware/auth.js';
+import pkg from '../package.json' with { type: 'json' };
 
 dotenv.config();
 
@@ -17,8 +18,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     service: 'agent-wallet-service',
-    version: '0.4.0',
-    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens'],
+    version: pkg.version,
+    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine'],
     chains: {
       testnets: ['base-sepolia', 'ethereum-sepolia', 'optimism-sepolia', 'arbitrum-sepolia'],
       mainnets: ['base', 'ethereum', 'polygon', 'optimism', 'arbitrum']
@@ -29,6 +30,9 @@ app.get('/health', (req, res) => {
         'POST /wallet/import',
         'GET /wallet/list',
         'GET /wallet/chains',
+        'GET /wallet/policy/:address',
+        'PUT /wallet/policy/:address',
+        'POST /wallet/policy/:address/evaluate',
         'GET /wallet/fees',
         'GET /wallet/history',
         'GET /wallet/tx/:hash',
@@ -66,7 +70,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     name: 'Agent Wallet Service',
-    version: '0.3.0',
+    version: pkg.version,
     docs: 'https://github.com/agent-wallet-service',
     auth: 'API key required for most endpoints. Use X-API-Key header.'
   });
