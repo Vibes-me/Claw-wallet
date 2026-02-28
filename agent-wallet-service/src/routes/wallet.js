@@ -3,7 +3,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { 
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
-  getTransactionReceipt, getMultiChainBalance, 
+  getTransactionReceipt, getMultiChainBalance,
+  getWalletByAddress,
   estimateGas, sweepWallet
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';

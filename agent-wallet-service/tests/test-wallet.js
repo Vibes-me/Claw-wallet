@@ -1,88 +1,114 @@
 /**
- * Test script for Agent Wallet Service
+ * Smoke tests for Agent Wallet Service
  * Run: node tests/test-wallet.js
  */
 
-const API_URL = 'http://localhost:3000';
-
 import { readFileSync } from 'fs';
+import { join } from 'path';
 
-function getApiKey() {
-  const keys = JSON.parse(readFileSync('api-keys.json', 'utf-8'));
-  return keys[0]?.key;
+const API_URL = process.env.API_URL || 'http://localhost:3000';
+
+function resolveApiKey() {
+  if (process.env.TEST_API_KEY) return process.env.TEST_API_KEY;
+
+  const keysPath = join(process.cwd(), 'api-keys.json');
+  const keys = JSON.parse(readFileSync(keysPath, 'utf-8'));
+  return keys?.[0]?.key;
 }
 
-const API_KEY = getApiKey();
-const AUTH_HEADERS = API_KEY ? { 'X-API-Key': API_KEY } : {};
+const API_KEY = resolveApiKey();
+
+if (!API_KEY) {
+  throw new Error('No API key available. Set TEST_API_KEY or create api-keys.json.');
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': API_KEY,
+      ...(options.headers || {})
+    }
+  });
+
+  const body = await response.json();
+  return { response, body };
+}
 
 async function testHealth() {
   console.log('\n📊 Testing health endpoint...');
   const res = await fetch(`${API_URL}/health`);
   const data = await res.json();
-  console.log('Health:', data);
+  console.log('Health:', data.status, data.version);
   return res.ok;
 }
 
 async function testCreateWallet() {
   console.log('\n🔐 Testing wallet creation...');
-  const res = await fetch(`${API_URL}/wallet/create`, {
+  const { response, body } = await request('/wallet/create', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
     body: JSON.stringify({
       agentName: 'TestAgent',
       chain: 'base-sepolia'
     })
   });
-  const data = await res.json();
-  console.log('Wallet created:', data);
-  return data.wallet?.address;
+
+  if (!response.ok) {
+    throw new Error(`Wallet creation failed: ${JSON.stringify(body)}`);
+  }
+
+  console.log('Wallet created:', body.wallet.address);
+  return body.wallet.address;
 }
 
 async function testGetBalance(address) {
   console.log('\n💰 Testing balance check...');
-  const res = await fetch(`${API_URL}/wallet/${address}/balance`, { headers: AUTH_HEADERS });
-  const data = await res.json();
-  console.log('Balance:', data);
+  const { response, body } = await request(`/wallet/${address}/balance`);
+
+  if (!response.ok) {
+    throw new Error(`Balance check failed: ${JSON.stringify(body)}`);
+  }
+
+  console.log('Balance:', body.balance.eth, body.balance.chain);
 }
 
-async function testRegisterIdentity() {
-  console.log('\n🆔 Testing identity registration...');
-  const res = await fetch(`${API_URL}/identity/create`, {
+async function testCreateIdentity(walletAddress) {
+  console.log('\n🆔 Testing identity creation...');
+  const { response, body } = await request('/identity/create', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
     body: JSON.stringify({
-      walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      walletAddress,
       agentName: 'Test Agent',
-      description: 'A test AI agent'
-
+      description: 'A test AI agent',
+      agentType: 'assistant'
     })
   });
-  const data = await res.json();
-  console.log('Identity:', data);
+
+  if (!response.ok) {
+    throw new Error(`Identity creation failed: ${JSON.stringify(body)}`);
+  }
+
+  console.log('Identity created:', body.identity.agentId);
 }
 
 async function runTests() {
-  console.log('🦞 Agent Wallet Service Tests');
-  console.log('==============================');
+  console.log('🦞 Agent Wallet Service Smoke Tests');
+  console.log('===================================');
 
-  try {
-    const healthy = await testHealth();
-    if (!healthy) {
-      console.log('❌ Server not running. Start with: npm start');
-      return;
-    }
-
-    const address = await testCreateWallet();
-    if (address) {
-      await testGetBalance(address);
-    }
-
-    await testRegisterIdentity();
-
-    console.log('\n✅ All tests completed!');
-  } catch (error) {
-    console.error('❌ Test failed:', error.message);
+  const healthy = await testHealth();
+  if (!healthy) {
+    throw new Error('Server not running. Start with: npm start');
   }
+
+  const address = await testCreateWallet();
+  await testGetBalance(address);
+  await testCreateIdentity(address);
+
+  console.log('\n✅ All tests completed!');
 }
 
-runTests();
+runTests().catch((error) => {
+  console.error('\n❌ Test failed:', error.message);
+  process.exit(1);
+});
