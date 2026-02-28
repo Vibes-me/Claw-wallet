@@ -4,7 +4,7 @@ import {
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getTransferPreflight, getSweepPreflight, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
@@ -151,6 +151,39 @@ router.post('/estimate-gas', async (req, res) => {
   }
 });
 
+
+/**
+ * POST /wallet/preflight
+ * Preflight checks for send/sweep transactions
+ */
+router.post('/preflight', requireAuth('write'), async (req, res) => {
+  try {
+    const { from, to, value, data, chain, allowSelfSend, maxFeeCap, gasGuardBps, operation = 'send' } = req.body;
+
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to are required' });
+    }
+
+    const preflight = operation === 'sweep'
+      ? await getSweepPreflight({ from, to, chain, allowSelfSend, maxFeeCap, gasGuardBps })
+      : await getTransferPreflight({
+          from,
+          to,
+          value,
+          data,
+          chain,
+          allowSelfSend,
+          maxFeeCap,
+          gasGuardBps
+        });
+
+    res.json({ success: true, preflight });
+  } catch (error) {
+    console.error('Preflight error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // ============================================================
 // DYNAMIC ROUTES (/:address)
 // ============================================================
@@ -234,13 +267,24 @@ router.get('/:address/history', (req, res) => {
 router.post('/:address/send', requireAuth('write'), async (req, res) => {
   try {
     const { address } = req.params;
-    const { to, value = '0', data = '0x', chain } = req.body;
+    const { to, value = '0', data = '0x', chain, allowSelfSend, maxFeeCap, gasGuardBps, referenceGasPriceWei, dryRun } = req.body;
     
     if (!to) {
       return res.status(400).json({ error: 'recipient address (to) is required' });
     }
 
-    const tx = await signTransaction({ from: address, to, value, data, chain });
+    const request = { from: address, to, value, data, chain, allowSelfSend, maxFeeCap, gasGuardBps, referenceGasPriceWei };
+
+    if (dryRun) {
+      const preflight = await getTransferPreflight(request);
+      return res.json({
+        success: true,
+        dryRun: true,
+        preflight
+      });
+    }
+
+    const tx = await signTransaction(request);
     res.json({
       success: true,
       transaction: tx
@@ -258,13 +302,18 @@ router.post('/:address/send', requireAuth('write'), async (req, res) => {
 router.post('/:address/sweep', requireAuth('write'), async (req, res) => {
   try {
     const { address } = req.params;
-    const { to, chain } = req.body;
+    const { to, chain, dryRun, maxFeeCap, gasGuardBps, referenceGasPriceWei } = req.body;
     
     if (!to) {
       return res.status(400).json({ error: 'recipient address (to) is required' });
     }
 
-    const result = await sweepWallet({ from: address, to, chain });
+    if (dryRun) {
+      const preflight = await getSweepPreflight({ from: address, to, chain, maxFeeCap, gasGuardBps });
+      return res.json({ success: true, dryRun: true, preflight });
+    }
+
+    const result = await sweepWallet({ from: address, to, chain, maxFeeCap, gasGuardBps, referenceGasPriceWei });
     res.json({
       success: true,
       sweep: result

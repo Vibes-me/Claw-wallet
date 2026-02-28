@@ -8,6 +8,17 @@
 
 const API = 'http://localhost:3000';
 
+
+function getOption(args, name) {
+  const prefix = `--${name}=`;
+  const found = args.find(a => a.startsWith(prefix));
+  return found ? found.slice(prefix.length) : undefined;
+}
+
+function hasFlag(args, flag) {
+  return args.includes(`--${flag}`);
+}
+
 // ============================================================
 // WALLET COMMANDS
 // ============================================================
@@ -43,11 +54,21 @@ async function getAllBalances(address) {
   return res.json();
 }
 
-async function sendTransaction(from, to, value, chain) {
+
+async function preflightTransaction(payload) {
+  const res = await fetch(`${API}/wallet/preflight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+async function sendTransaction(from, to, value, chain, options = {}) {
   const res = await fetch(`${API}/wallet/${from}/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, value, chain })
+    body: JSON.stringify({ to, value, chain, ...options })
   });
   return res.json();
 }
@@ -57,11 +78,11 @@ async function listWallets() {
   return res.json();
 }
 
-async function sweepWallet(from, to, chain) {
+async function sweepWallet(from, to, chain, options = {}) {
   const res = await fetch(`${API}/wallet/${from}/sweep`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, chain })
+    body: JSON.stringify({ to, chain, ...options })
   });
   return res.json();
 }
@@ -200,14 +221,29 @@ async function main() {
     }
     
     case 'send': {
-      const [from, to, value, chain] = args;
+      const [from, to, value, chain, ...opts] = args;
       if (!from || !to || !value) {
-        console.log('Usage: cli.js send <from> <to> <value> [chain]');
+        console.log('Usage: cli.js send <from> <to> <value> [chain] [--dry-run] [--allow-self-send] [--max-fee-cap=<eth>] [--gas-guard-bps=<bps>]');
         break;
       }
-      console.log(`Sending ${value} ETH...`);
-      const result = await sendTransaction(from, to, value, chain);
-      if (result.success) {
+
+      const dryRun = hasFlag(opts, 'dry-run');
+      const options = {
+        dryRun,
+        allowSelfSend: hasFlag(opts, 'allow-self-send'),
+        maxFeeCap: getOption(opts, 'max-fee-cap'),
+        gasGuardBps: getOption(opts, 'gas-guard-bps') ? parseInt(getOption(opts, 'gas-guard-bps'), 10) : undefined
+      };
+
+      console.log(dryRun ? `Simulating send of ${value} ETH...` : `Sending ${value} ETH...`);
+      const result = await sendTransaction(from, to, value, chain, options);
+      if (result.success && result.dryRun) {
+        console.log('🧪 Dry run preflight:');
+        console.log(`   Chain: ${result.preflight.chain}`);
+        console.log(`   Estimated Fee: ${result.preflight.estimatedFee} ETH`);
+        console.log(`   Total Impact: ${result.preflight.totalImpact} ETH`);
+        console.log(`   Post Balance: ${result.preflight.projectedPostBalance} ETH`);
+      } else if (result.success) {
         console.log(`✅ Transaction sent!`);
         console.log(`   Hash: ${result.transaction.hash}`);
         console.log(`   Chain: ${result.transaction.chain}`);
@@ -219,14 +255,25 @@ async function main() {
     }
     
     case 'sweep': {
-      const [from, to, chain] = args;
+      const [from, to, chain, ...opts] = args;
       if (!from || !to) {
-        console.log('Usage: cli.js sweep <from> <to> [chain]');
+        console.log('Usage: cli.js sweep <from> <to> [chain] [--dry-run] [--max-fee-cap=<eth>] [--gas-guard-bps=<bps>]');
         break;
       }
-      console.log(`Sweeping all funds from ${from} to ${to}...`);
-      const result = await sweepWallet(from, to, chain);
-      if (result.success) {
+      const dryRun = hasFlag(opts, 'dry-run');
+      const options = {
+        dryRun,
+        maxFeeCap: getOption(opts, 'max-fee-cap'),
+        gasGuardBps: getOption(opts, 'gas-guard-bps') ? parseInt(getOption(opts, 'gas-guard-bps'), 10) : undefined
+      };
+      console.log(dryRun ? `Simulating sweep from ${from} to ${to}...` : `Sweeping all funds from ${from} to ${to}...`);
+      const result = await sweepWallet(from, to, chain, options);
+      if (result.success && result.dryRun) {
+        console.log('🧪 Sweep dry run preflight:');
+        console.log(`   Chain: ${result.preflight.chain}`);
+        console.log(`   Estimated Fee: ${result.preflight.estimatedFee} ETH`);
+        console.log(`   Projected Send: ${result.preflight.projectedSend} ETH`);
+      } else if (result.success) {
         console.log(`✅ Sweep complete!`);
         console.log(`   Sent: ${result.sweep.amountSent} ETH`);
         console.log(`   Gas: ${result.sweep.gasCost} ETH`);
@@ -237,6 +284,35 @@ async function main() {
       break;
     }
     
+    case 'preflight': {
+      const [from, to, value, chain, ...opts] = args;
+      if (!from || !to || !value) {
+        console.log('Usage: cli.js preflight <from> <to> <value> [chain] [--max-fee-cap=<eth>] [--gas-guard-bps=<bps>]');
+        break;
+      }
+
+      const result = await preflightTransaction({
+        from,
+        to,
+        value,
+        chain,
+        maxFeeCap: getOption(opts, 'max-fee-cap'),
+        gasGuardBps: getOption(opts, 'gas-guard-bps') ? parseInt(getOption(opts, 'gas-guard-bps'), 10) : undefined
+      });
+
+      if (result.success) {
+        console.log('Preflight:');
+        console.log(`   Chain: ${result.preflight.chain}`);
+        console.log(`   Gas: ${result.preflight.estimatedGas}`);
+        console.log(`   Fee: ${result.preflight.estimatedFee} ETH`);
+        console.log(`   Impact: ${result.preflight.totalImpact} ETH`);
+        console.log(`   Post Balance: ${result.preflight.projectedPostBalance} ETH`);
+      } else {
+        console.log(`❌ Error: ${result.error}`);
+      }
+      break;
+    }
+
     case 'estimate': {
       const [from, to, value, chain] = args;
       if (!from || !to) {
@@ -423,9 +499,10 @@ async function main() {
       console.log('  import <key> <name> [chain] Import wallet from private key');
       console.log('  balance <address> [chain]   Check wallet balance');
       console.log('  balances <address>          Balance across all chains');
-      console.log('  send <from> <to> <value>    Send ETH');
-      console.log('  sweep <from> <to>           Send all funds');
+      console.log('  send <from> <to> <value>    Send ETH (supports --dry-run)');
+      console.log('  sweep <from> <to>           Send all funds (supports --dry-run)');
       console.log('  estimate <from> <to> [val]  Estimate gas cost');
+      console.log('  preflight <from> <to> <val> Preflight send projection');
       console.log('  tx <hash> [chain]           Get transaction status');
       console.log('  list                        List all wallets');
       console.log('  chains                      List supported chains');

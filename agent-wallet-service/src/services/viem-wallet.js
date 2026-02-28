@@ -5,7 +5,7 @@
  */
 
 import 'dotenv/config';
-import { createWalletClient, createPublicClient, http, parseEther, formatEther } from 'viem';
+import { createWalletClient, createPublicClient, http, parseEther, formatEther, isAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { 
   baseSepolia, base, mainnet, sepolia,
@@ -74,6 +74,100 @@ const CHAINS = {
 
 // Default chain
 const DEFAULT_CHAIN = 'base-sepolia';
+const DUST_THRESHOLD_WEI = 1_000_000_000n; // 1 gwei
+
+function normalizeAddress(address) {
+  return String(address || '').trim().toLowerCase();
+}
+
+function parseEthValue(value) {
+  const raw = value == null ? '0' : String(value).trim();
+  if (!/^(0|[1-9]\d*)(\.\d{1,18})?$/.test(raw)) {
+    throw new Error('Invalid value format. Use non-negative decimal ETH value up to 18 decimals');
+  }
+  return parseEther(raw);
+}
+
+function validateRecipient({ from, to, allowSelfSend = false }) {
+  if (!isAddress(to)) {
+    throw new Error('Invalid recipient address format');
+  }
+
+  if (!allowSelfSend && normalizeAddress(from) === normalizeAddress(to)) {
+    throw new Error('Self-send is blocked by default. Set allowSelfSend=true to override');
+  }
+}
+
+function enforceDustRules(amountWei) {
+  if (amountWei <= 0n) {
+    throw new Error('Transaction value must be greater than zero');
+  }
+  if (amountWei < DUST_THRESHOLD_WEI) {
+    throw new Error(`Value below dust threshold (${formatEther(DUST_THRESHOLD_WEI)} ETH)`);
+  }
+}
+
+async function preflightTransfer({ from, to, value, data = '0x', chain, allowSelfSend = false, maxFeeCap, gasGuardBps }) {
+  const wallet = Array.from(wallets.values()).find(w => w.address.toLowerCase() === normalizeAddress(from));
+  if (!wallet) {
+    throw new Error(`Wallet not found: ${from}`);
+  }
+
+  validateRecipient({ from, to, allowSelfSend });
+
+  const chainName = chain || wallet.chain || DEFAULT_CHAIN;
+  const chainConfig = getChainConfig(chainName);
+  const valueWei = parseEthValue(value || '0');
+  enforceDustRules(valueWei);
+
+  const { client } = await createClientWithFallback(chainConfig, 'public');
+  const [balance, gasEstimate, gasPrice] = await Promise.all([
+    client.getBalance({ address: from }),
+    client.estimateGas({ account: from, to, value: valueWei, data }),
+    client.getGasPrice()
+  ]);
+
+  const estimatedFeeWei = gasEstimate * gasPrice;
+  const totalImpactWei = valueWei + estimatedFeeWei;
+  const projectedPostBalanceWei = balance - totalImpactWei;
+
+  if (projectedPostBalanceWei < 0n) {
+    throw new Error('Insufficient balance for value + estimated fee');
+  }
+
+  if (maxFeeCap != null) {
+    const capWei = parseEthValue(maxFeeCap);
+    if (estimatedFeeWei > capWei) {
+      throw new Error(`Estimated fee ${formatEther(estimatedFeeWei)} ETH exceeds maxFeeCap ${maxFeeCap} ETH`);
+    }
+  }
+
+  if (gasGuardBps != null && (!Number.isInteger(gasGuardBps) || gasGuardBps < 0 || gasGuardBps > 10_000)) {
+    throw new Error('gasGuardBps must be an integer between 0 and 10000');
+  }
+
+  return {
+    chain: chainName,
+    from,
+    to,
+    value: formatEther(valueWei),
+    valueWei: valueWei.toString(),
+    balanceWei: balance.toString(),
+    balance: formatEther(balance),
+    estimatedGas: gasEstimate.toString(),
+    gasPriceWei: gasPrice.toString(),
+    estimatedFeeWei: estimatedFeeWei.toString(),
+    estimatedFee: formatEther(estimatedFeeWei),
+    totalImpactWei: totalImpactWei.toString(),
+    totalImpact: formatEther(totalImpactWei),
+    projectedPostBalanceWei: projectedPostBalanceWei.toString(),
+    projectedPostBalance: formatEther(projectedPostBalanceWei),
+    guardrails: {
+      maxFeeCap: maxFeeCap || null,
+      gasGuardBps: gasGuardBps ?? null
+    }
+  };
+}
 
 /**
  * Get chain config by name
@@ -218,8 +312,12 @@ export async function getBalance(address, chain) {
 /**
  * Sign and send a transaction
  */
-export async function signTransaction({ from, to, value, data = '0x', chain }) {
-  const wallet = Array.from(wallets.values()).find(w => w.address === from);
+export async function getTransferPreflight(params) {
+  return preflightTransfer(params);
+}
+
+export async function signTransaction({ from, to, value, data = '0x', chain, allowSelfSend = false, maxFeeCap, gasGuardBps, referenceGasPriceWei }) {
+  const wallet = Array.from(wallets.values()).find(w => w.address.toLowerCase() === normalizeAddress(from));
   
   if (!wallet) {
     throw new Error(`Wallet not found: ${from}`);
@@ -230,6 +328,17 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
   const chainConfig = getChainConfig(chainName);
 
   try {
+    const preflight = await preflightTransfer({ from, to, value, data, chain: chainName, allowSelfSend, maxFeeCap, gasGuardBps });
+
+    if (referenceGasPriceWei != null && gasGuardBps != null) {
+      const baseline = BigInt(referenceGasPriceWei);
+      const current = BigInt(preflight.gasPriceWei);
+      const maxAllowed = baseline + ((baseline * BigInt(gasGuardBps)) / 10_000n);
+      if (current > maxAllowed) {
+        throw new Error(`Gas price moved above guardrail (${current} > ${maxAllowed})`);
+      }
+    }
+
     // Decrypt private key for use
     const decryptedKey = decrypt(wallet.privateKey);
     const account = privateKeyToAccount(decryptedKey);
@@ -248,7 +357,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
 
     const hash = await walletClient.sendTransaction({
       to,
-      value: parseEther(value),
+      value: BigInt(preflight.valueWei),
       data
     });
 
@@ -270,6 +379,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
       to,
       value,
       data,
+      preflight,
       chain: chainName,
       explorer: getExplorerUrl(chainName, hash)
     };
@@ -277,6 +387,68 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
     console.error('Failed to send transaction:', error);
     throw error;
   }
+}
+
+
+export async function getSweepPreflight({ from, to, chain, allowSelfSend = false, maxFeeCap, gasGuardBps }) {
+  const wallet = Array.from(wallets.values()).find(w => w.address.toLowerCase() === normalizeAddress(from));
+  if (!wallet) throw new Error(`Wallet not found: ${from}`);
+
+  validateRecipient({ from, to, allowSelfSend });
+
+  const chainName = chain || wallet.chain || DEFAULT_CHAIN;
+  const chainConfig = getChainConfig(chainName);
+  const { client } = await createClientWithFallback(chainConfig, 'public');
+
+  const [balance, gasPrice] = await Promise.all([
+    client.getBalance({ address: from }),
+    client.getGasPrice()
+  ]);
+
+  const gasEstimate = await client.estimateGas({
+    account: from,
+    to,
+    value: balance,
+    data: '0x'
+  });
+
+  const estimatedFeeWei = gasEstimate * gasPrice;
+
+  if (maxFeeCap != null) {
+    const capWei = parseEthValue(maxFeeCap);
+    if (estimatedFeeWei > capWei) {
+      throw new Error(`Estimated fee ${formatEther(estimatedFeeWei)} ETH exceeds maxFeeCap ${maxFeeCap} ETH`);
+    }
+  }
+
+  if (gasGuardBps != null && (!Number.isInteger(gasGuardBps) || gasGuardBps < 0 || gasGuardBps > 10_000)) {
+    throw new Error('gasGuardBps must be an integer between 0 and 10000');
+  }
+
+  const amountToSendWei = balance - estimatedFeeWei;
+  if (amountToSendWei <= 0n) {
+    throw new Error('Insufficient balance to cover gas');
+  }
+
+  return {
+    chain: chainName,
+    from,
+    to,
+    balanceWei: balance.toString(),
+    balance: formatEther(balance),
+    estimatedGas: gasEstimate.toString(),
+    gasPriceWei: gasPrice.toString(),
+    estimatedFeeWei: estimatedFeeWei.toString(),
+    estimatedFee: formatEther(estimatedFeeWei),
+    projectedSendWei: amountToSendWei.toString(),
+    projectedSend: formatEther(amountToSendWei),
+    projectedPostBalanceWei: '0',
+    projectedPostBalance: '0',
+    guardrails: {
+      maxFeeCap: maxFeeCap || null,
+      gasGuardBps: gasGuardBps ?? null
+    }
+  };
 }
 
 /**
@@ -447,7 +619,7 @@ export async function getMultiChainBalance(address) {
  * Estimate gas for a transaction
  */
 export async function estimateGas({ from, to, value, data = '0x', chain }) {
-  const wallet = Array.from(wallets.values()).find(w => w.address === from);
+  const wallet = Array.from(wallets.values()).find(w => w.address.toLowerCase() === normalizeAddress(from));
   const chainName = chain || wallet?.chain || DEFAULT_CHAIN;
   const chainConfig = getChainConfig(chainName);
   
@@ -457,7 +629,7 @@ export async function estimateGas({ from, to, value, data = '0x', chain }) {
     const gas = await client.estimateGas({
       account: from,
       to,
-      value: parseEther(value || '0'),
+      value: parseEthValue(value || '0'),
       data
     });
     
@@ -482,36 +654,28 @@ export async function estimateGas({ from, to, value, data = '0x', chain }) {
 /**
  * Transfer all funds (sweep wallet)
  */
-export async function sweepWallet({ from, to, chain }) {
-  const wallet = Array.from(wallets.values()).find(w => w.address === from);
+export async function sweepWallet({ from, to, chain, maxFeeCap, gasGuardBps, referenceGasPriceWei }) {
+  const wallet = Array.from(wallets.values()).find(w => w.address.toLowerCase() === normalizeAddress(from));
   if (!wallet) throw new Error('Wallet not found');
+
+  validateRecipient({ from, to, allowSelfSend: false });
   
   const chainName = chain || wallet.chain || DEFAULT_CHAIN;
   const chainConfig = getChainConfig(chainName);
-  
+
   try {
-    const { client: publicClient } = await createClientWithFallback(chainConfig, 'public');
-    
-    // Get balance
-    const balance = await publicClient.getBalance({ address: from });
-    
-    // Estimate gas
-    const gasEstimate = await publicClient.estimateGas({
-      account: from,
-      to,
-      value: balance,
-      data: '0x'
-    });
-    
-    const gasPrice = await publicClient.getGasPrice();
-    const gasCost = gasEstimate * gasPrice;
-    
-    // Calculate amount to send (balance - gas)
-    const amountToSend = balance - gasCost;
-    
-    if (amountToSend <= 0n) {
-      throw new Error('Insufficient balance to cover gas');
+    const preflight = await getSweepPreflight({ from, to, chain: chainName, maxFeeCap, gasGuardBps });
+
+    if (referenceGasPriceWei != null && gasGuardBps != null) {
+      const baseline = BigInt(referenceGasPriceWei);
+      const current = BigInt(preflight.gasPriceWei);
+      const maxAllowed = baseline + ((baseline * BigInt(gasGuardBps)) / 10_000n);
+      if (current > maxAllowed) {
+        throw new Error(`Gas price moved above guardrail (${current} > ${maxAllowed})`);
+      }
     }
+
+    const amountToSend = BigInt(preflight.projectedSendWei);
     
     // Create wallet client
     const account = privateKeyToAccount(decrypt(wallet.privateKey));
@@ -532,8 +696,9 @@ export async function sweepWallet({ from, to, chain }) {
       from,
       to,
       amountSent: formatEther(amountToSend),
-      gasCost: formatEther(gasCost),
+      gasCost: preflight.estimatedFee,
       chain: chainName,
+      preflight,
       explorer: getExplorerUrl(chainName, hash)
     };
   } catch (error) {
