@@ -117,6 +117,12 @@ On-chain identity for AI agents:
 - Role-based permissions (read/write/admin)
 - Rate limiting built-in
 
+### 🛡️ Policy Engine Guardrails
+
+- Per-wallet transfer limits (`perTxLimitEth`, `dailyLimitEth`)
+- Recipient allowlist/denylist
+- Policy simulation endpoint before sending funds
+
 ## Role-specific snippets
 
 ### 1) Backend API service (server-to-server)
@@ -146,12 +152,16 @@ npm run cli -- send 0xFrom 0xTo 0.001
 ```javascript
 import AgentWallet from './sdk.js';
 
-const wallet = new AgentWallet('http://localhost:3000');
+const wallet = new AgentWallet({
+  baseUrl: 'http://localhost:3000',
+  apiKey: process.env.API_KEY
+});
 
-const created = await wallet.createWallet('SdkBot');
+const created = await wallet.createWallet('SdkBot', 'base-sepolia');
 const balance = await wallet.getBalance(created.wallet.address);
-const tx = await wallet.send(created.wallet.address, '0x000000000000000000000000000000000000dead', '0.000001');
-console.log({ created, balance, tx });
+const preflight = await wallet.preflight(created.wallet.address, '0x000000000000000000000000000000000000dead', '0.000001', 'base-sepolia');
+const tx = await wallet.send(created.wallet.address, '0x000000000000000000000000000000000000dead', '0.000001', 'base-sepolia');
+console.log({ created, balance, preflight, tx });
 ```
 
 ### First-run copy/paste flow (create key + create wallet + check balance)
@@ -223,6 +233,9 @@ POST /wallet/create                      Create new wallet
 POST /wallet/import                      Import from private key
 GET  /wallet/list                        List all wallets
 GET  /wallet/chains                      Supported chains
+GET  /wallet/policy/:address              Get wallet policy
+PUT  /wallet/policy/:address              Set wallet policy
+POST /wallet/policy/:address/evaluate     Simulate policy decision
 GET  /wallet/fees                        Fee configuration
 GET  /wallet/history                     Global transaction history
 GET  /wallet/tx/:hash                    Transaction status/receipt
@@ -232,6 +245,7 @@ GET  /wallet/:address                    Wallet details
 GET  /wallet/:address/balance            Balance on wallet chain (or ?chain=)
 GET  /wallet/:address/balance/all        Balance across all chains
 GET  /wallet/:address/history            Wallet transaction history
+POST /wallet/:address/preflight           Safe preflight simulation
 POST /wallet/:address/send               Send transaction
 POST /wallet/:address/sweep              Sweep all funds
 ```
@@ -264,7 +278,7 @@ GET  /ens/:name                          Resolve ENS details
 
 | Error case | HTTP status | Typical message | What to do |
 |---|---:|---|---|
-| Missing API key | 401 | `API key required` | Send `X-API-Key` header (or `?apiKey=` query param). |
+| Missing API key | 401 | `API key required` | Send `X-API-Key` header (`?apiKey=` only if `ALLOW_QUERY_API_KEY=true`). |
 | Invalid API key | 403 | `Invalid API key` | Ensure the key exists and has not been revoked. |
 | Invalid chain | 400 or 500 | `Unsupported chain` / chain validation error | Call `GET /wallet/chains` and use one of the returned chain IDs. |
 | Insufficient funds | 500 | `insufficient funds` | Fund the sender on the same chain and reduce transfer amount to account for gas. |
@@ -310,3 +324,25 @@ First successful transaction on Base Sepolia:
 ---
 
 Built by Mr. Claw 🦞
+
+
+## Policy Example
+
+```bash
+# Set policy for a wallet
+curl -X PUT http://localhost:3000/wallet/policy/$FROM_WALLET \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{
+    "dailyLimitEth": "0.05",
+    "perTxLimitEth": "0.01",
+    "allowedRecipients": ["0xabc..."],
+    "blockedRecipients": []
+  }'
+
+# Check if a transfer would pass policy
+curl -X POST http://localhost:3000/wallet/policy/$FROM_WALLET/evaluate \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"to":"0xabc...","value":"0.005","chain":"base-sepolia"}'
+```

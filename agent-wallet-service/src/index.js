@@ -4,6 +4,8 @@ import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey, getOnboardingState } from './middleware/auth.js';
+import pkg from '../package.json' with { type: 'json' };
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -12,13 +14,21 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const requestId = req.headers['x-request-id'] || randomUUID();
+  req.requestId = requestId;
+  res.locals.requestId = requestId;
+  res.set('X-Request-Id', requestId);
+  next();
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     service: 'agent-wallet-service',
-    version: '0.4.0',
-    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens'],
+    version: pkg.version,
+    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine'],
     chains: {
       testnets: ['base-sepolia', 'ethereum-sepolia', 'optimism-sepolia', 'arbitrum-sepolia'],
       mainnets: ['base', 'ethereum', 'polygon', 'optimism', 'arbitrum']
@@ -29,6 +39,9 @@ app.get('/health', (req, res) => {
         'POST /wallet/import',
         'GET /wallet/list',
         'GET /wallet/chains',
+        'GET /wallet/policy/:address',
+        'PUT /wallet/policy/:address',
+        'POST /wallet/policy/:address/evaluate',
         'GET /wallet/fees',
         'GET /wallet/history',
         'GET /wallet/tx/:hash',
@@ -37,6 +50,7 @@ app.get('/health', (req, res) => {
         'GET /wallet/:address/balance',
         'GET /wallet/:address/balance/all',
         'GET /wallet/:address/history',
+        'POST /wallet/:address/preflight',
         'POST /wallet/:address/send',
         'POST /wallet/:address/sweep'
       ],
@@ -66,7 +80,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     name: 'Agent Wallet Service',
-    version: '0.3.0',
+    version: pkg.version,
     docs: 'https://github.com/agent-wallet-service',
     auth: 'API key required for most endpoints. Use X-API-Key header.'
   });
@@ -141,8 +155,16 @@ app.use('/ens', requireAuth('read'), ensRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  const status = err.status || 500;
+  const code = err.code || 'internal_error';
+  const message = err.message || 'Internal server error';
+  const details = err.details || null;
+
+  console.error(`[${req.requestId}]`, err);
+  res.status(status).json({
+    error: { code, message, details },
+    requestId: req.requestId
+  });
 });
 
 app.listen(PORT, () => {

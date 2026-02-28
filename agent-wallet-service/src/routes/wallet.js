@@ -5,10 +5,12 @@ import {
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance,
   getWalletByAddress,
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, preflightTransfer
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
+import { getPolicy, setPolicy, evaluateTransferPolicy } from '../services/policy-engine.js';
+import { sendError, validateRequired, HttpError } from '../utils/http.js';
 
 const router = Router();
 
@@ -25,7 +27,7 @@ router.post('/create', requireAuth('write'), async (req, res) => {
     const { agentName, chain = 'base-sepolia' } = req.body;
     
     if (!agentName) {
-      return res.status(400).json({ error: 'agentName is required' });
+      throw new HttpError(400, 'validation_error', 'agentName is required');
     }
 
     const wallet = await createWallet({ agentName, chain });
@@ -39,7 +41,7 @@ router.post('/create', requireAuth('write'), async (req, res) => {
     });
   } catch (error) {
     console.error('Wallet creation error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'internal_error', message: error.message });
   }
 });
 
@@ -52,7 +54,7 @@ router.post('/import', requireAuth('write'), async (req, res) => {
     const { privateKey, agentName, chain } = req.body;
     
     if (!privateKey) {
-      return res.status(400).json({ error: 'privateKey is required' });
+      throw new HttpError(400, 'validation_error', 'privateKey is required');
     }
 
     const wallet = await importWallet({ privateKey, agentName, chain });
@@ -62,7 +64,7 @@ router.post('/import', requireAuth('write'), async (req, res) => {
     });
   } catch (error) {
     console.error('Wallet import error:', error);
-    res.status(400).json({ error: error.message });
+    return sendError(res, { status: error.status || 400, code: error.code || 'import_failed', message: error.message });
   }
 });
 
@@ -78,7 +80,7 @@ router.get('/list', async (req, res) => {
       wallets 
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'internal_error', message: error.message });
   }
 });
 
@@ -94,6 +96,57 @@ router.get('/chains', (req, res) => {
     chains 
   });
 });
+
+/**
+ * GET /wallet/policy/:address
+ * Get wallet policy
+ */
+router.get('/policy/:address', (req, res) => {
+  try {
+    const { address } = req.params;
+    const policy = getPolicy(address);
+    res.json({ address, policy });
+  } catch (error) {
+    return sendError(res, { status: error.status || 500, code: error.code || 'internal_error', message: error.message });
+  }
+});
+
+/**
+ * PUT /wallet/policy/:address
+ * Upsert wallet policy
+ */
+router.put('/policy/:address', requireAuth('write'), (req, res) => {
+  try {
+    const { address } = req.params;
+    const policy = setPolicy(address, req.body || {});
+    res.json({ success: true, address, policy });
+  } catch (error) {
+    return sendError(res, { status: error.status || 400, code: error.code || 'bad_request', message: error.message });
+  }
+});
+
+/**
+ * POST /wallet/policy/:address/evaluate
+ * Evaluate policy without sending a transaction
+ */
+router.post('/policy/:address/evaluate', (req, res) => {
+  try {
+    const { address } = req.params;
+    const { to, value = '0', chain } = req.body;
+
+    const evaluation = evaluateTransferPolicy({
+      walletAddress: address,
+      to,
+      valueEth: value,
+      chain
+    });
+
+    res.json({ address, evaluation });
+  } catch (error) {
+    return sendError(res, { status: error.status || 400, code: error.code || 'bad_request', message: error.message });
+  }
+});
+
 
 /**
  * GET /wallet/fees
@@ -128,7 +181,7 @@ router.get('/tx/:hash', async (req, res) => {
     const receipt = await getTransactionReceipt(hash, chain);
     res.json(receipt);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'internal_error', message: error.message });
   }
 });
 
@@ -141,14 +194,14 @@ router.post('/estimate-gas', async (req, res) => {
     const { from, to, value, data, chain } = req.body;
     
     if (!from || !to) {
-      return res.status(400).json({ error: 'from and to addresses are required' });
+      return sendError(res, { status: 400, code: 'validation_error', message: 'from and to addresses are required' });
     }
 
     const estimate = await estimateGas({ from, to, value, data, chain });
     res.json(estimate);
   } catch (error) {
     console.error('Gas estimation error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'gas_estimation_failed', message: error.message });
   }
 });
 
@@ -166,7 +219,7 @@ router.get('/:address', async (req, res) => {
     const wallet = getWalletByAddress(address);
     
     if (!wallet) {
-      return res.status(404).json({ error: `Wallet not found: ${address}` });
+      return sendError(res, { status: 404, code: 'not_found', message: `Wallet not found: ${address}` });
     }
     
     res.json({
@@ -177,7 +230,7 @@ router.get('/:address', async (req, res) => {
       createdAt: wallet.createdAt
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'internal_error', message: error.message });
   }
 });
 
@@ -196,7 +249,7 @@ router.get('/:address/balance', async (req, res) => {
     });
   } catch (error) {
     console.error('Balance check error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'balance_failed', message: error.message });
   }
 });
 
@@ -214,7 +267,7 @@ router.get('/:address/balance/all', async (req, res) => {
     });
   } catch (error) {
     console.error('Multi-chain balance error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'multi_chain_balance_failed', message: error.message });
   }
 });
 
@@ -229,6 +282,34 @@ router.get('/:address/history', (req, res) => {
 });
 
 /**
+ * POST /wallet/:address/preflight
+ * Simulate transfer policy + fee safety checks without broadcasting
+ */
+router.post('/:address/preflight', async (req, res) => {
+  try {
+    const { address } = req.params;
+    validateRequired(req.body, ['to']);
+    const { to, value = '0', chain } = req.body;
+
+    const simulation = await preflightTransfer({
+      from: address,
+      to,
+      value,
+      chain
+    });
+
+    res.json({ success: true, preflight: simulation });
+  } catch (error) {
+    return sendError(res, {
+      status: error.status || 400,
+      code: error.code || 'preflight_failed',
+      message: error.message,
+      details: error.details || null
+    });
+  }
+});
+
+/**
  * POST /wallet/:address/send
  * Send a transaction
  */
@@ -238,7 +319,7 @@ router.post('/:address/send', requireAuth('write'), async (req, res) => {
     const { to, value = '0', data = '0x', chain } = req.body;
     
     if (!to) {
-      return res.status(400).json({ error: 'recipient address (to) is required' });
+      return sendError(res, { status: 400, code: 'validation_error', message: 'recipient address (to) is required' });
     }
 
     const tx = await signTransaction({ from: address, to, value, data, chain });
@@ -248,7 +329,7 @@ router.post('/:address/send', requireAuth('write'), async (req, res) => {
     });
   } catch (error) {
     console.error('Transaction error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'transaction_failed', message: error.message });
   }
 });
 
@@ -262,7 +343,7 @@ router.post('/:address/sweep', requireAuth('write'), async (req, res) => {
     const { to, chain } = req.body;
     
     if (!to) {
-      return res.status(400).json({ error: 'recipient address (to) is required' });
+      return sendError(res, { status: 400, code: 'validation_error', message: 'recipient address (to) is required' });
     }
 
     const result = await sweepWallet({ from: address, to, chain });
@@ -272,7 +353,7 @@ router.post('/:address/sweep', requireAuth('write'), async (req, res) => {
     });
   } catch (error) {
     console.error('Sweep error:', error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, { status: error.status || 500, code: error.code || 'sweep_failed', message: error.message });
   }
 });
 

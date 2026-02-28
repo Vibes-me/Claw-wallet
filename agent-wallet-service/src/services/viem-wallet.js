@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logTransaction } from './tx-history.js';
 import { encrypt, decrypt } from './encryption.js';
+import { evaluateTransferPolicy, recordPolicySpend } from './policy-engine.js';
 
 // ============================================================
 // MULTI-CHAIN CONFIG
@@ -229,6 +230,17 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
   const chainName = chain || wallet.chain || DEFAULT_CHAIN;
   const chainConfig = getChainConfig(chainName);
 
+  const policyEvaluation = evaluateTransferPolicy({
+    walletAddress: from,
+    to,
+    valueEth: value,
+    chain: chainName
+  });
+
+  if (!policyEvaluation.allowed) {
+    throw new Error(`Policy blocked transaction (${policyEvaluation.reason})`);
+  }
+
   try {
     // Decrypt private key for use
     const decryptedKey = decrypt(wallet.privateKey);
@@ -263,6 +275,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
       chain: chainName
     };
     logTransaction(txRecord);
+    recordPolicySpend({ walletAddress: from, valueEth: value });
 
     return {
       hash,
@@ -479,6 +492,87 @@ export async function estimateGas({ from, to, value, data = '0x', chain }) {
   }
 }
 
+
+/**
+ * Preflight transfer safety checks and cost simulation
+ */
+export async function preflightTransfer({ from, to, value = '0', chain }) {
+  const wallet = Array.from(wallets.values()).find(w => w.address === from);
+  if (!wallet) {
+    throw new Error(`Wallet not found: ${from}`);
+  }
+
+  const chainName = chain || wallet.chain || DEFAULT_CHAIN;
+  const chainConfig = getChainConfig(chainName);
+
+  const valueEth = String(value || '0');
+  if (Number(valueEth) < 0) {
+    throw new Error('Transfer value must be >= 0');
+  }
+
+  const policyEvaluation = evaluateTransferPolicy({
+    walletAddress: from,
+    to,
+    valueEth,
+    chain: chainName
+  });
+
+  const { client } = await createClientWithFallback(chainConfig, 'public');
+  const senderBalanceWei = await client.getBalance({ address: from });
+
+  let gasUnits = null;
+  let gasPriceWei = null;
+  let estimatedFeeWei = null;
+  let totalCostWei = null;
+  let balanceAfterWei = null;
+
+  try {
+    const estimatedGas = await client.estimateGas({
+      account: from,
+      to,
+      value: parseEther(valueEth),
+      data: '0x'
+    });
+
+    const gasPrice = await client.getGasPrice();
+    gasUnits = estimatedGas.toString();
+    gasPriceWei = gasPrice.toString();
+    estimatedFeeWei = (estimatedGas * gasPrice).toString();
+
+    const total = parseEther(valueEth) + (estimatedGas * gasPrice);
+    totalCostWei = total.toString();
+    balanceAfterWei = (senderBalanceWei - total).toString();
+  } catch (error) {
+    // Keep estimate soft-fail for UX diagnostics.
+  }
+
+  const transferWei = parseEther(valueEth);
+  const hasEnoughBalance = senderBalanceWei >= transferWei;
+
+  return {
+    from,
+    to,
+    chain: chainName,
+    policy: policyEvaluation,
+    simulation: {
+      transferEth: valueEth,
+      transferWei: transferWei.toString(),
+      senderBalanceEth: formatEther(senderBalanceWei),
+      senderBalanceWei: senderBalanceWei.toString(),
+      gasUnits,
+      gasPriceWei,
+      estimatedFeeEth: estimatedFeeWei ? formatEther(BigInt(estimatedFeeWei)) : null,
+      estimatedFeeWei,
+      totalCostEth: totalCostWei ? formatEther(BigInt(totalCostWei)) : null,
+      totalCostWei,
+      balanceAfterEth: balanceAfterWei ? formatEther(BigInt(balanceAfterWei)) : null,
+      balanceAfterWei,
+      hasEnoughBalance
+    },
+    recommendedAction: policyEvaluation.allowed && hasEnoughBalance ? 'safe_to_send' : 'review_required'
+  };
+}
+
 /**
  * Transfer all funds (sweep wallet)
  */
@@ -512,6 +606,18 @@ export async function sweepWallet({ from, to, chain }) {
     if (amountToSend <= 0n) {
       throw new Error('Insufficient balance to cover gas');
     }
+
+    const amountToSendEth = formatEther(amountToSend);
+    const policyEvaluation = evaluateTransferPolicy({
+      walletAddress: from,
+      to,
+      valueEth: amountToSendEth,
+      chain: chainName
+    });
+
+    if (!policyEvaluation.allowed) {
+      throw new Error(`Policy blocked sweep (${policyEvaluation.reason})`);
+    }
     
     // Create wallet client
     const account = privateKeyToAccount(decrypt(wallet.privateKey));
@@ -526,6 +632,15 @@ export async function sweepWallet({ from, to, chain }) {
       value: amountToSend,
       data: '0x'
     });
+
+    logTransaction({
+      hash,
+      from,
+      to,
+      value: amountToSendEth,
+      chain: chainName
+    });
+    recordPolicySpend({ walletAddress: from, valueEth: amountToSendEth });
     
     return {
       hash,
