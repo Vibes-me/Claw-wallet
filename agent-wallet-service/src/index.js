@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
-import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
+import { requireAuth, createApiKey, listApiKeys, revokeApiKey, getOnboardingState } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -69,6 +69,52 @@ app.get('/', (req, res) => {
     version: '0.3.0',
     docs: 'https://github.com/agent-wallet-service',
     auth: 'API key required for most endpoints. Use X-API-Key header.'
+  });
+});
+
+
+app.get('/onboarding', (req, res) => {
+  const state = getOnboardingState();
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  res.json({
+    service: 'agent-wallet-service',
+    hasApiKeys: state.hasApiKeys,
+    apiKeyCount: state.apiKeyCount,
+    keyPreview: state.firstKeyPrefix,
+    docs: state.docsPath,
+    nextSteps: state.hasApiKeys
+      ? [
+          'Use your existing API key with header: X-API-Key: sk_...',
+          'Create a wallet with POST /wallet/create',
+          'Check balances with GET /wallet/:address/balance'
+        ]
+      : [
+          'Start the service once to bootstrap an admin API key',
+          'Set SHOW_BOOTSTRAP_SECRET=true to print full bootstrap key if needed',
+          'Use POST /api-keys to create scoped keys for apps/bots'
+        ],
+    examples: {
+      createApiKey: {
+        description: 'Create a new API key (admin auth required)',
+        curl: `curl -X POST ${baseUrl}/api-keys \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <ADMIN_API_KEY>" \
+  -d '{"name":"my-bot","permissions":["read","write"]}'`
+      },
+      createWallet: {
+        description: 'Create a wallet on Base Sepolia',
+        curl: `curl -X POST ${baseUrl}/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{"agentName":"MyBot","chain":"base-sepolia"}'`
+      },
+      checkBalance: {
+        description: 'Check wallet balance',
+        curl: `curl ${baseUrl}/wallet/<ADDRESS>/balance \
+  -H "X-API-Key: <API_KEY>"`
+      }
+    }
   });
 });
 

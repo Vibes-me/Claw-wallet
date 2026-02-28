@@ -6,7 +6,8 @@
  * Complete CLI for wallet + identity management
  */
 
-const API = 'http://localhost:3000';
+const API = process.env.AGENT_WALLET_API || 'http://localhost:3000';
+const CLI_API_KEY = process.env.AGENT_WALLET_API_KEY || process.env.API_KEY || '';
 
 // ============================================================
 // WALLET COMMANDS
@@ -116,6 +117,18 @@ async function getIdentity(agentId) {
 async function getIdentitiesByWallet(address) {
   const res = await fetch(`${API}/identity/wallet/${address}`);
   return res.json();
+}
+
+
+async function getOnboarding() {
+  const res = await fetch(`${API}/onboarding`);
+  return { ok: res.ok, status: res.status, data: await res.json() };
+}
+
+async function checkAuthStatus(apiKey = CLI_API_KEY) {
+  const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+  const res = await fetch(`${API}/wallet/list`, { headers });
+  return { ok: res.ok, status: res.status, data: await res.json() };
 }
 
 // ============================================================
@@ -385,6 +398,48 @@ async function main() {
       break;
     }
     
+
+    case 'setup': {
+      console.log(`Checking server at ${API}...`);
+      try {
+        const healthRes = await fetch(`${API}/health`);
+        if (!healthRes.ok) {
+          console.log(`❌ Server reachable but unhealthy (HTTP ${healthRes.status})`);
+          break;
+        }
+        const health = await healthRes.json();
+        console.log(`✅ Server online: ${health.service} v${health.version}`);
+      } catch (error) {
+        console.log(`❌ Could not connect to server at ${API}`);
+        console.log('   Start it with: npm start');
+        break;
+      }
+
+      const onboarding = await getOnboarding();
+      if (onboarding.ok) {
+        console.log(`✅ Onboarding endpoint available (${onboarding.status})`);
+        console.log(`   API keys configured: ${onboarding.data.apiKeyCount}`);
+        if (onboarding.data.keyPreview) {
+          console.log(`   First key prefix: ${onboarding.data.keyPreview}...`);
+        }
+      } else {
+        console.log(`⚠️  Onboarding endpoint returned HTTP ${onboarding.status}`);
+      }
+
+      const auth = await checkAuthStatus();
+      if (auth.ok) {
+        console.log('✅ Auth check passed (wallet/list accessible).');
+      } else if (auth.status === 401) {
+        console.log('⚠️  Auth required: set AGENT_WALLET_API_KEY and re-run setup.');
+        console.log(`   Hint: GET ${API}/onboarding`);
+      } else if (auth.status === 403) {
+        console.log('⚠️  Provided API key is invalid or lacks permissions.');
+      } else {
+        console.log(`⚠️  Auth check returned HTTP ${auth.status}`);
+      }
+      break;
+    }
+
     case 'demo': {
       console.log('🎬 Running full demo...\n');
       
@@ -437,6 +492,7 @@ async function main() {
       console.log('  identity wallet <address>               Identities by wallet');
       console.log('');
       console.log('  OTHER');
+      console.log('  setup                       Check server + auth onboarding');
       console.log('  demo                        Run interactive demo');
   }
 }

@@ -154,6 +154,33 @@ const tx = await wallet.send(created.wallet.address, '0x000000000000000000000000
 console.log({ created, balance, tx });
 ```
 
+### First-run copy/paste flow (create key + create wallet + check balance)
+
+```bash
+# 1) Verify setup state and copy examples
+curl http://localhost:3000/onboarding
+
+# 2) Create an app API key (replace with your bootstrap admin key)
+export ADMIN_API_KEY='sk_live_...'
+curl -X POST http://localhost:3000/api-keys \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $ADMIN_API_KEY" \
+  -d '{"name":"quickstart","permissions":["read","write"]}'
+
+# 3) Use the returned key for app calls
+export API_KEY='sk_...'
+
+# 4) Create wallet
+curl -X POST http://localhost:3000/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"agentName":"MyBot","chain":"base-sepolia"}'
+
+# 5) Check balance (replace ADDRESS with wallet address from previous step)
+curl http://localhost:3000/wallet/ADDRESS/balance \
+  -H "X-API-Key: $API_KEY"
+```
+
 ## CLI Usage
 
 ```bash
