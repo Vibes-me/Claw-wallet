@@ -1,0 +1,111 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f172a;
+  --panel: #111827;
+  --muted: #94a3b8;
+  --border: #1f2937;
+  --accent: #22d3ee;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: #e5e7eb;
+  padding: 1.25rem;
+}
+
+header { margin-bottom: 1rem; }
+h1 { margin: 0; }
+p { margin: .35rem 0 0; color: var(--muted); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: .9rem;
+}
+
+.auth-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-bottom: 1rem;
+  align-items: end;
+}
+
+label { display: flex; flex-direction: column; gap: .35rem; min-width: 240px; }
+input, button {
+  background: #0b1220;
+  border: 1px solid #374151;
+  color: #f8fafc;
+  padding: .5rem .65rem;
+  border-radius: .45rem;
+}
+button {
+  cursor: pointer;
+  background: #0891b2;
+  border-color: #06b6d4;
+}
+button:hover { opacity: .95; }
+.actions { margin-bottom: .25rem; }
+
+.muted { color: var(--muted); }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .75rem;
+}
+form {
+  border: 1px solid #2b3546;
+  border-radius: .5rem;
+  padding: .65rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.confirm {
+  font-size: .85rem;
+  color: #cbd5e1;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+.output {
+  margin-top: .75rem;
+  max-height: 220px;
+  overflow: auto;
+  background: #020617;
+  padding: .65rem;
+  border-radius: .5rem;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+th, td {
+  text-align: left;
+  border-bottom: 1px solid #253144;
+  padding: .35rem;
+  vertical-align: top;
+}
+
+a { color: var(--accent); }
+.docs { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; }
+
+pre { white-space: pre-wrap; word-break: break-word; }
+.snippet {
+  margin-bottom: .65rem;
+  border: 1px solid #2b3546;
+  border-radius: .5rem;
+  padding: .55rem;
+}
+.snippet button { margin-top: .4rem; }

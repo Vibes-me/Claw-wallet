@@ -104,6 +104,23 @@ POST /identity/:agentId/revoke           Revoke identity
 GET  /identity/:agentId/credential       W3C Verifiable Credential
 ```
 
+
+## Web Dashboard
+
+A basic operations dashboard is available at:
+
+```
+GET /dashboard
+```
+
+It includes:
+- Wallet list + balances
+- Transaction history + identities
+- API key metadata view
+- Protected create/send/sweep forms with explicit confirmation
+- Request logs with `X-RateLimit-*` header visibility
+- Onboarding doc links + copy-ready SDK snippets per wallet
+
 ## SDK
 
 ```javascript

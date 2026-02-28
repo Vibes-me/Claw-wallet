@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Wallet Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🦞 Agent Wallet Dashboard</h1>
+      <p>Operations console for wallets, identities, and API key usage.</p>
+    </header>
+
+    <section class="panel auth-panel">
+      <h2>Connection</h2>
+      <label>
+        API Base URL
+        <input id="baseUrl" value="" placeholder="http://localhost:3000" />
+      </label>
+      <label>
+        API Key
+        <input id="apiKey" type="password" placeholder="sk_..." />
+      </label>
+      <div class="actions">
+        <button id="refreshAll">Refresh Dashboard</button>
+      </div>
+      <small>Tip: Use an admin key to view API key metadata.</small>
+    </section>
+
+    <main class="grid">
+      <section class="panel">
+        <h2>Wallets + Balances</h2>
+        <div id="walletSummary" class="muted">No wallets loaded.</div>
+        <div id="wallets"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Identities</h2>
+        <div id="identities"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Transaction History</h2>
+        <div id="history"></div>
+      </section>
+
+      <section class="panel">
+        <h2>API Key Metadata</h2>
+        <div id="apiKeys"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Protected Forms</h2>
+        <div class="form-grid">
+          <form id="createWalletForm">
+            <h3>Create Wallet</h3>
+            <input name="agentName" placeholder="Agent name" required />
+            <input name="chain" placeholder="base-sepolia" value="base-sepolia" />
+            <label class="confirm">
+              <input type="checkbox" name="confirm" required />
+              I confirm I want to create this wallet.
+            </label>
+            <button>Create</button>
+          </form>
+
+          <form id="sendForm">
+            <h3>Send</h3>
+            <input name="address" placeholder="From wallet" required />
+            <input name="to" placeholder="To address" required />
+            <input name="value" placeholder="0.001" required />
+            <input name="chain" placeholder="base-sepolia" value="base-sepolia" />
+            <label class="confirm">
+              <input type="checkbox" name="confirm" required />
+              I confirm this transfer details are correct.
+            </label>
+            <button>Send</button>
+          </form>
+
+          <form id="sweepForm">
+            <h3>Sweep</h3>
+            <input name="address" placeholder="From wallet" required />
+            <input name="to" placeholder="To address" required />
+            <input name="chain" placeholder="base-sepolia" value="base-sepolia" />
+            <label class="confirm">
+              <input type="checkbox" name="confirm" required />
+              I confirm this will sweep all available funds.
+            </label>
+            <button>Sweep</button>
+          </form>
+        </div>
+        <pre id="formResult" class="output"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Request Logs + Rate Limits</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Method</th>
+              <th>Endpoint</th>
+              <th>Status</th>
+              <th>Limit</th>
+              <th>Remaining</th>
+              <th>Reset</th>
+            </tr>
+          </thead>
+          <tbody id="requestLogs"></tbody>
+        </table>
+      </section>
+
+      <section class="panel">
+        <h2>Onboarding + SDK Snippets</h2>
+        <div class="docs">
+          <a href="https://github.com/mrclaw/agent-wallet-service#quick-start" target="_blank" rel="noreferrer">Quick Start Docs</a>
+          <a href="https://github.com/mrclaw/agent-wallet-service#api-endpoints" target="_blank" rel="noreferrer">API Endpoint Docs</a>
+          <a href="https://github.com/mrclaw/agent-wallet-service#sdk" target="_blank" rel="noreferrer">SDK Docs</a>
+        </div>
+        <div id="snippets" class="snippets"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/dashboard/app.js"></script>
+  </body>
+</html>

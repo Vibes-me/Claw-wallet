@@ -1,5 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
@@ -9,8 +11,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dashboardDir = path.join(__dirname, '..', 'dashboard');
 
 app.use(express.json());
+app.use('/dashboard', express.static(dashboardDir));
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(dashboardDir, 'index.html'));
+});
 
 // Health check
 app.get('/health', (req, res) => {
