@@ -58,6 +58,7 @@ node cli.js sweep 0xfrom 0xto      # Send all funds
 node cli.js estimate 0xfrom 0xto 0.001
 node cli.js list
 node cli.js chains
+node cli.js export history --format csv --from 2025-01-01T00:00:00Z --to 2025-01-31T23:59:59Z
 
 # Identity commands (ERC-8004)
 node cli.js identity create 0xwallet BotName assistant
@@ -79,9 +80,11 @@ POST /wallet/import          Import from private key
 GET  /wallet/list            List all wallets
 GET  /wallet/chains          Supported chains
 GET  /wallet/fees            Fee configuration
-GET  /wallet/history         Transaction history
-POST /wallet/estimate-gas    Estimate gas cost
-GET  /wallet/tx/:hash        Get transaction status
+GET  /wallet/history                         Transaction history
+GET  /wallet/history/export                  Export history as CSV/JSONL
+POST /wallet/estimate-gas                    Estimate gas cost
+GET  /wallet/tx/:hash                        Get transaction status
+GET  /wallet/tx/:hash/receipt                Get normalized local receipt
 
 GET  /wallet/:address                    Wallet details
 GET  /wallet/:address/balance            Balance on wallet's chain
@@ -103,6 +106,40 @@ PATCH /identity/:agentId/capability      Update capability
 POST /identity/:agentId/revoke           Revoke identity
 GET  /identity/:agentId/credential       W3C Verifiable Credential
 ```
+
+
+## Accounting Export Schema
+
+`GET /wallet/history/export` supports deterministic, reconciliation-friendly exports in `csv` or `jsonl` format.
+
+Query params:
+- `format`: `csv` or `jsonl` (default `csv`)
+- `from`: ISO-8601 lower timestamp bound (inclusive)
+- `to`: ISO-8601 upper timestamp bound (inclusive)
+- `wallet`: wallet address filter (`from` or `to` match)
+- `agent`: agent tag filter (`metadata.tags` includes `agent:<name>`)
+- `chain`: chain name filter
+
+Export fields:
+- `hash`: transaction hash
+- `chain`: chain/network identifier
+- `timestamp`: ISO-8601 event time
+- `from`: sender wallet
+- `to`: recipient wallet
+- `grossAmount`: fixed-scale decimal string (18 decimals)
+- `gas`: gas used/estimated units as string when known
+- `fee`: fixed-scale decimal string (18 decimals)
+- `netAmount`: fixed-scale decimal string (18 decimals)
+- `status`: submitted/success/failed/pending
+- `metadataTags`: pipe-delimited tags (e.g. `agent:DemoBot|chain:base-sepolia`)
+
+### Reconciliation assumptions
+
+- `grossAmount`, `fee`, and `netAmount` are serialized with exactly 18 decimal places to avoid spreadsheet float drift.
+- `netAmount` is normalized as `grossAmount - fee` when a source `netAmount` is not provided.
+- `timestamp` defaults to service log time if chain confirmation time is unavailable.
+- `status` defaults to `submitted` for newly logged transfers and is updated when richer receipt details are available.
+- Metadata tags are normalized and sorted for deterministic exports.
 
 ## SDK
 

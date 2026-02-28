@@ -4,10 +4,11 @@ import {
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
-import { getHistory, getWalletTransactions } from '../services/tx-history.js';
+import { getHistory, getWalletTransactions, getTransactionByHash } from '../services/tx-history.js';
+import { exportTransactions } from '../services/exporter.js';
 
 const router = Router();
 
@@ -113,6 +114,44 @@ router.get('/history', (req, res) => {
     count: history.length,
     transactions: history 
   });
+});
+
+
+/**
+ * GET /wallet/history/export?format=csv|jsonl&from=...&to=...&wallet=...&agent=...
+ * Export transaction history in accounting-friendly formats
+ */
+router.get('/history/export', (req, res) => {
+  try {
+    const { format = 'csv', from, to, wallet, agent, chain } = req.query;
+
+    if (!['csv', 'jsonl'].includes(format)) {
+      return res.status(400).json({ error: 'format must be csv or jsonl' });
+    }
+
+    const exported = exportTransactions({ format, from, to, wallet, agent, chain });
+
+    res.setHeader('Content-Type', exported.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${exported.filename}"`);
+    res.send(exported.content);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /wallet/tx/:hash/receipt
+ * Get normalized local receipt object for accounting
+ */
+router.get('/tx/:hash/receipt', (req, res) => {
+  const { hash } = req.params;
+  const receipt = getTransactionByHash(hash);
+
+  if (!receipt) {
+    return res.status(404).json({ error: `Transaction not found: ${hash}` });
+  }
+
+  res.json({ receipt });
 });
 
 /**

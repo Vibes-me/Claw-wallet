@@ -85,6 +85,42 @@ async function getTxStatus(hash, chain) {
   return res.json();
 }
 
+
+async function exportHistory({ format = 'csv', from, to, wallet, agent, chain }) {
+  const params = new URLSearchParams({ format });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (wallet) params.set('wallet', wallet);
+  if (agent) params.set('agent', agent);
+  if (chain) params.set('chain', chain);
+
+  const res = await fetch(`${API}/wallet/history/export?${params.toString()}`);
+  const contentType = res.headers.get('content-type') || '';
+  const body = await res.text();
+
+  if (!res.ok) {
+    let error = body;
+    try {
+      error = JSON.parse(body).error || error;
+    } catch {}
+    throw new Error(error);
+  }
+
+  return { contentType, body };
+}
+
+function parseFlagArgs(args) {
+  const out = {};
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (!token.startsWith('--')) continue;
+    const key = token.slice(2);
+    const value = args[i + 1] && !args[i + 1].startsWith('--') ? args[++i] : 'true';
+    out[key] = value;
+  }
+  return out;
+}
+
 // ============================================================
 // IDENTITY COMMANDS
 // ============================================================
@@ -385,6 +421,37 @@ async function main() {
       break;
     }
     
+
+    case 'export': {
+      const [subCmd, ...subArgs] = args;
+      if (subCmd !== 'history') {
+        console.log('Usage: cli.js export history --format csv|jsonl --from <ISO> --to <ISO> [--wallet <address>] [--agent <name>] [--chain <chain>]');
+        break;
+      }
+
+      const flags = parseFlagArgs(subArgs);
+      const format = flags.format || 'csv';
+      if (!['csv', 'jsonl'].includes(format)) {
+        console.log('❌ Error: --format must be csv or jsonl');
+        break;
+      }
+
+      try {
+        const result = await exportHistory({
+          format,
+          from: flags.from,
+          to: flags.to,
+          wallet: flags.wallet,
+          agent: flags.agent,
+          chain: flags.chain
+        });
+        console.log(result.body);
+      } catch (error) {
+        console.log(`❌ Error: ${error.message}`);
+      }
+      break;
+    }
+
     case 'demo': {
       console.log('🎬 Running full demo...\n');
       
@@ -429,6 +496,7 @@ async function main() {
       console.log('  tx <hash> [chain]           Get transaction status');
       console.log('  list                        List all wallets');
       console.log('  chains                      List supported chains');
+      console.log('  export history --format ... Export tx history as csv/jsonl');
       console.log('');
       console.log('  IDENTITY (ERC-8004)');
       console.log('  identity create <wallet> <name> [type]  Create agent identity');
