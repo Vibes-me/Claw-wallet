@@ -85,6 +85,30 @@ async function getTxStatus(hash, chain) {
   return res.json();
 }
 
+
+async function registerWebhook(url, events, chains, maxRetries, baseBackoffMs) {
+  const res = await fetch(`${API}/wallet/webhooks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, events, chains, maxRetries, baseBackoffMs })
+  });
+  return res.json();
+}
+
+async function listWebhooks() {
+  const res = await fetch(`${API}/wallet/webhooks`);
+  return res.json();
+}
+
+async function testWebhook(webhookId, state = 'confirmed', txHash, chain = 'base-sepolia') {
+  const res = await fetch(`${API}/wallet/webhooks/${webhookId}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state, txHash, chain })
+  });
+  return res.json();
+}
+
 // ============================================================
 // IDENTITY COMMANDS
 // ============================================================
@@ -302,6 +326,72 @@ async function main() {
       break;
     }
     
+
+    case 'webhook': {
+      const subCmd = args[0];
+      const subArgs = args.slice(1);
+
+      switch (subCmd) {
+        case 'register': {
+          const [url, eventsCsv, chainsCsv, retries, backoff] = subArgs;
+          if (!url) {
+            console.log('Usage: cli.js webhook register <url> [eventsCsv] [chainsCsv] [retries] [baseBackoffMs]');
+            break;
+          }
+
+          const result = await registerWebhook(
+            url,
+            eventsCsv ? eventsCsv.split(',') : undefined,
+            chainsCsv ? chainsCsv.split(',') : undefined,
+            retries ? parseInt(retries, 10) : undefined,
+            backoff ? parseInt(backoff, 10) : undefined
+          );
+
+          if (result.success) {
+            console.log('✅ Webhook registered!');
+            console.log(`   ID: ${result.webhook.id}`);
+            console.log(`   URL: ${result.webhook.url}`);
+          } else {
+            console.log(`❌ Error: ${result.error}`);
+          }
+          break;
+        }
+        case 'list': {
+          const result = await listWebhooks();
+          if (!result.webhooks?.length) {
+            console.log('No webhooks registered.');
+            break;
+          }
+          console.log(`Registered webhooks (${result.count}):`);
+          result.webhooks.forEach((hook) => {
+            console.log(`   - ${hook.id} => ${hook.url}`);
+          });
+          break;
+        }
+        case 'test': {
+          const [webhookId, state, txHash, chain] = subArgs;
+          if (!webhookId) {
+            console.log('Usage: cli.js webhook test <webhookId> [state] [txHash] [chain]');
+            break;
+          }
+          const result = await testWebhook(webhookId, state, txHash, chain);
+          if (result.success) {
+            console.log('✅ Test webhook queued.');
+            console.log(`   Event: ${result.event.toState} (${result.event.txHash})`);
+          } else {
+            console.log(`❌ Error: ${result.error}`);
+          }
+          break;
+        }
+        default:
+          console.log('Webhook commands:');
+          console.log('  webhook register <url> [eventsCsv] [chainsCsv] [retries] [baseBackoffMs]');
+          console.log('  webhook list');
+          console.log('  webhook test <webhookId> [state] [txHash] [chain]');
+      }
+      break;
+    }
+
     // ============ IDENTITY COMMANDS ============
     case 'identity': {
       const subCmd = args[0];
@@ -429,6 +519,14 @@ async function main() {
       console.log('  tx <hash> [chain]           Get transaction status');
       console.log('  list                        List all wallets');
       console.log('  chains                      List supported chains');
+      console.log('  webhook <subcommand>        Manage tx-status webhooks');
+      console.log('');
+      console.log('  WEBHOOK');
+      console.log('  webhook register <url> [events] [chains] [retries] [backoff]');
+      console.log('                              Register tx-status webhook');
+      console.log('  webhook list                List webhook subscriptions');
+      console.log('  webhook test <id> [state] [txHash] [chain]');
+      console.log('                              Send signed test webhook');
       console.log('');
       console.log('  IDENTITY (ERC-8004)');
       console.log('  identity create <wallet> <name> [type]  Create agent identity');

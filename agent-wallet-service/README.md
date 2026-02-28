@@ -10,6 +10,7 @@ Add wallet functionality to any AI agent in seconds. No blockchain SDKs, no key 
 - ERC-8004 AI Agent Identity
 - API key authentication
 - Full CLI + SDK
+- Transaction lifecycle tracking + signed webhooks
 
 ## Features
 
@@ -59,6 +60,11 @@ node cli.js estimate 0xfrom 0xto 0.001
 node cli.js list
 node cli.js chains
 
+# Webhook commands
+node cli.js webhook register http://localhost:8787/webhook
+node cli.js webhook list
+node cli.js webhook test wh_123 confirmed
+
 # Identity commands (ERC-8004)
 node cli.js identity create 0xwallet BotName assistant
 node cli.js identity list
@@ -79,9 +85,13 @@ POST /wallet/import          Import from private key
 GET  /wallet/list            List all wallets
 GET  /wallet/chains          Supported chains
 GET  /wallet/fees            Fee configuration
-GET  /wallet/history         Transaction history
-POST /wallet/estimate-gas    Estimate gas cost
-GET  /wallet/tx/:hash        Get transaction status
+GET  /wallet/history              Transaction history
+POST /wallet/estimate-gas         Estimate gas cost
+GET  /wallet/tx/:hash             Get transaction status
+GET  /wallet/webhooks             List tx webhooks (admin)
+POST /wallet/webhooks             Register tx webhook (admin)
+DELETE /wallet/webhooks/:id       Remove tx webhook (admin)
+POST /wallet/webhooks/:id/test    Send test webhook (admin)
 
 GET  /wallet/:address                    Wallet details
 GET  /wallet/:address/balance            Balance on wallet's chain
@@ -102,6 +112,61 @@ GET  /identity/:agentId                  Get identity
 PATCH /identity/:agentId/capability      Update capability
 POST /identity/:agentId/revoke           Revoke identity
 GET  /identity/:agentId/credential       W3C Verifiable Credential
+```
+
+
+## Transaction Status Lifecycle
+
+Each outbound transaction is persisted with full lifecycle timestamps:
+
+- `submitted` (immediately after wallet client returns tx hash)
+- `pending` (seen on-chain but not yet confirmed)
+- `confirmed` (receipt status = success)
+- `failed` (receipt status = reverted/failed)
+
+A background poller runs every `TX_POLL_INTERVAL_MS` (default `12000`) and checks pending/submitted hashes by chain.
+
+## Webhooks
+
+Register webhook consumers to receive `tx.status.updated` events.
+
+### Delivery security
+
+Webhooks are signed with `HMAC-SHA256(secret, "timestamp.payload")` and sent in:
+
+- `X-Tx-Webhook-Signature`
+- `X-Tx-Webhook-Timestamp`
+- `X-Tx-Webhook-Event`
+- `X-Tx-Webhook-Id`
+
+Set a global default secret with `WEBHOOK_SECRET` or provide a per-webhook `secret` in `POST /wallet/webhooks`.
+
+### Retry policy
+
+Failed deliveries are retried with exponential backoff:
+
+- default retries: `WEBHOOK_MAX_RETRIES` (default `3`)
+- default base delay: `WEBHOOK_BASE_BACKOFF_MS` (default `1000`)
+- delay formula: `baseDelay * 2^(attempt-1)` (capped at 30s)
+
+### Local webhook testing
+
+1. Start a local receiver (example using netcat):
+
+```bash
+nc -l 8787
+```
+
+2. Register webhook in service:
+
+```bash
+node cli.js webhook register http://localhost:8787/webhook
+```
+
+3. Trigger a signed test delivery:
+
+```bash
+node cli.js webhook test <webhookId> confirmed
 ```
 
 ## SDK
@@ -151,7 +216,6 @@ First successful transaction on Base Sepolia:
 - [ ] Public deployment
 - [ ] NPM package
 - [ ] Web dashboard
-- [ ] Webhook notifications
 - [ ] Multi-signature wallets
 
 ## Positioning

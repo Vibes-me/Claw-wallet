@@ -4,10 +4,17 @@ import {
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
-import { getHistory, getWalletTransactions } from '../services/tx-history.js';
+import {
+  getHistory,
+  getWalletTransactions,
+  listWebhooks,
+  registerWebhook,
+  removeWebhook,
+  sendTestWebhook
+} from '../services/tx-history.js';
 
 const router = Router();
 
@@ -113,6 +120,66 @@ router.get('/history', (req, res) => {
     count: history.length,
     transactions: history 
   });
+});
+
+
+/**
+ * GET /wallet/webhooks
+ * List tx status webhooks
+ */
+router.get('/webhooks', requireAuth('admin'), (req, res) => {
+  const webhooks = listWebhooks();
+  res.json({ count: webhooks.length, webhooks });
+});
+
+/**
+ * POST /wallet/webhooks
+ * Register a tx status webhook
+ */
+router.post('/webhooks', requireAuth('admin'), (req, res) => {
+  try {
+    const { url, events, chains, secret, maxRetries, baseBackoffMs } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'url is required' });
+    }
+
+    const webhook = registerWebhook({ url, events, chains, secret, maxRetries, baseBackoffMs });
+    res.status(201).json({ success: true, webhook });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /wallet/webhooks/:id
+ * Remove a tx status webhook
+ */
+router.delete('/webhooks/:id', requireAuth('admin'), (req, res) => {
+  const removed = removeWebhook(req.params.id);
+  if (!removed) {
+    return res.status(404).json({ error: 'Webhook not found' });
+  }
+
+  res.json({ success: true, id: req.params.id });
+});
+
+/**
+ * POST /wallet/webhooks/:id/test
+ * Send a signed test event to webhook endpoint
+ */
+router.post('/webhooks/:id/test', requireAuth('admin'), (req, res) => {
+  try {
+    const { txHash, chain, state } = req.body;
+    const result = sendTestWebhook({
+      webhookId: req.params.id,
+      txHash,
+      chain,
+      state
+    });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
 });
 
 /**

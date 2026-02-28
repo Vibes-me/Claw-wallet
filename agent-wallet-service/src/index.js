@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
+import { startTxStatusPolling } from './services/tx-history.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
 
 dotenv.config();
@@ -25,6 +26,10 @@ app.get('/health', (req, res) => {
     },
     endpoints: {
       wallet: [
+        'GET /wallet/webhooks',
+        'POST /wallet/webhooks',
+        'DELETE /wallet/webhooks/:id',
+        'POST /wallet/webhooks/:id/test',
         'POST /wallet/create',
         'POST /wallet/import',
         'GET /wallet/list',
@@ -98,6 +103,8 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
+
+startTxStatusPolling();
 
 app.listen(PORT, () => {
   console.log(`🦞 Agent Wallet Service running on port ${PORT}`);
