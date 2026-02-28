@@ -4,7 +4,10 @@
  */
 
 import { Router } from 'express';
+import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
+import { validateRequest, commonSchemas } from '../middleware/validation.js';
+import { AppError } from '../errors.js';
 import {
   checkAvailability,
   getPrice,
@@ -15,49 +18,51 @@ import {
 
 const router = Router();
 
-/**
- * GET /ens/check/:name
- * Check if ENS name is available
- */
-router.get('/check/:name', async (req, res) => {
+const ensNameParamsSchema = z.object({ name: z.string().min(3) });
+
+router.get('/check/:name', validateRequest({
+  params: ensNameParamsSchema,
+  query: z.object({ chain: commonSchemas.chain.optional().default('ethereum') })
+}), async (req, res, next) => {
   try {
     const { name } = req.params;
-    const { chain = 'ethereum' } = req.query;
-    
+    const { chain } = req.query;
+
     const result = await checkAvailability(name, chain);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /ens/price/:name
- * Get registration price for ENS name
- */
-router.get('/price/:name', async (req, res) => {
+router.get('/price/:name', validateRequest({
+  params: ensNameParamsSchema,
+  query: z.object({
+    years: z.coerce.number().int().min(1).optional().default(1),
+    chain: commonSchemas.chain.optional().default('ethereum')
+  })
+}), async (req, res, next) => {
   try {
     const { name } = req.params;
-    const { years = 1, chain = 'ethereum' } = req.query;
-    
-    const price = await getPrice(name, parseInt(years), chain);
+    const { years, chain } = req.query;
+
+    const price = await getPrice(name, years, chain);
     res.json(price);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * POST /ens/register
- * Prepare ENS registration (returns commitment + steps)
- */
-router.post('/register', requireAuth('write'), async (req, res) => {
+router.post('/register', requireAuth('write'), validateRequest({
+  body: z.object({
+    name: z.string().min(3),
+    ownerAddress: commonSchemas.address,
+    years: z.coerce.number().int().min(1).optional().default(1),
+    chain: commonSchemas.chain.optional().default('ethereum')
+  })
+}), async (req, res, next) => {
   try {
-    const { name, ownerAddress, years = 1, chain = 'ethereum' } = req.body;
-    
-    if (!name || !ownerAddress) {
-      return res.status(400).json({ error: 'name and ownerAddress are required' });
-    }
+    const { name, ownerAddress, years, chain } = req.body;
 
     const result = await prepareRegistration({
       name,
@@ -66,41 +71,30 @@ router.post('/register', requireAuth('write'), async (req, res) => {
       chain
     });
 
-    res.json({
-      success: true,
-      registration: result
-    });
+    res.json({ success: true, registration: result });
   } catch (error) {
-    console.error('ENS registration error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /ens/list
- * List all pending/completed ENS registrations
- */
-router.get('/list', (req, res) => {
+router.get('/list', (_req, res) => {
   const registrations = listRegistrations();
-  res.json({
-    count: registrations.length,
-    registrations
-  });
+  res.json({ count: registrations.length, registrations });
 });
 
-/**
- * GET /ens/:name
- * Get registration details by name
- */
-router.get('/:name', (req, res) => {
-  const { name } = req.params;
-  const registration = getRegistration(name);
-  
-  if (!registration) {
-    return res.status(404).json({ error: 'Registration not found' });
+router.get('/:name', validateRequest({ params: ensNameParamsSchema }), (req, res, next) => {
+  try {
+    const { name } = req.params;
+    const registration = getRegistration(name);
+
+    if (!registration) {
+      throw new AppError({ status: 404, code: 'NOT_FOUND', message: 'Registration not found' });
+    }
+
+    res.json(registration);
+  } catch (error) {
+    next(error);
   }
-  
-  res.json(registration);
 });
 
 export default router;

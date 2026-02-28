@@ -1,32 +1,57 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
-import { 
-  createWallet, getBalance, signTransaction, 
+import { validateRequest, commonSchemas } from '../middleware/validation.js';
+import { AppError } from '../errors.js';
+import {
+  createWallet, getBalance, signTransaction,
   getAllWallets, getSupportedChains, importWallet,
-  getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  getTransactionReceipt, getMultiChainBalance,
+  estimateGas, sweepWallet, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
 
 const router = Router();
 
-// ============================================================
-// STATIC ROUTES (must come before /:address routes)
-// ============================================================
+const createWalletSchema = z.object({
+  agentName: z.string().min(1),
+  chain: commonSchemas.chain.optional().default('base-sepolia')
+});
 
-/**
- * POST /wallet/create
- * Create a new agent wallet
- */
-router.post('/create', requireAuth('write'), async (req, res) => {
+const importWalletSchema = z.object({
+  privateKey: z.string().min(1),
+  agentName: z.string().min(1).optional(),
+  chain: commonSchemas.chain.optional()
+});
+
+const walletAddressParamsSchema = z.object({
+  address: commonSchemas.address
+});
+
+const sendBodySchema = z.object({
+  to: commonSchemas.address,
+  value: z.string().optional().default('0'),
+  data: z.string().optional().default('0x'),
+  chain: commonSchemas.chain.optional()
+});
+
+const sweepBodySchema = z.object({
+  to: commonSchemas.address,
+  chain: commonSchemas.chain.optional()
+});
+
+const txParamsSchema = z.object({
+  hash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, 'Must be a valid transaction hash')
+});
+
+const txQuerySchema = z.object({
+  chain: commonSchemas.chain.optional().default('base-sepolia')
+});
+
+router.post('/create', requireAuth('write'), validateRequest({ body: createWalletSchema }), async (req, res, next) => {
   try {
-    const { agentName, chain = 'base-sepolia' } = req.body;
-    
-    if (!agentName) {
-      return res.status(400).json({ error: 'agentName is required' });
-    }
-
+    const { agentName, chain } = req.body;
     const wallet = await createWallet({ agentName, chain });
     res.json({
       success: true,
@@ -37,137 +62,86 @@ router.post('/create', requireAuth('write'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Wallet creation error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * POST /wallet/import
- * Import an existing wallet from private key
- */
-router.post('/import', requireAuth('write'), async (req, res) => {
+router.post('/import', requireAuth('write'), validateRequest({ body: importWalletSchema }), async (req, res, next) => {
   try {
     const { privateKey, agentName, chain } = req.body;
-    
-    if (!privateKey) {
-      return res.status(400).json({ error: 'privateKey is required' });
+    const wallet = await importWallet({ privateKey, agentName, chain });
+    if (!wallet.imported && wallet.message?.toLowerCase().includes('already exists')) {
+      throw new AppError({ status: 409, code: 'CONFLICT', message: wallet.message });
     }
 
-    const wallet = await importWallet({ privateKey, agentName, chain });
-    res.json({
-      success: true,
-      wallet
-    });
+    res.json({ success: true, wallet });
   } catch (error) {
-    console.error('Wallet import error:', error);
-    res.status(400).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /wallet/list
- * List all wallets
- */
-router.get('/list', async (req, res) => {
+router.get('/list', async (_req, res, next) => {
   try {
     const wallets = getAllWallets();
-    res.json({ 
-      count: wallets.length,
-      wallets 
-    });
+    res.json({ count: wallets.length, wallets });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /wallet/chains
- * List all supported chains
- */
-router.get('/chains', (req, res) => {
+router.get('/chains', (_req, res) => {
   const chains = getSupportedChains();
-  res.json({ 
-    default: 'base-sepolia',
-    count: chains.length,
-    chains 
-  });
+  res.json({ default: 'base-sepolia', count: chains.length, chains });
 });
 
-/**
- * GET /wallet/fees
- * Get fee configuration
- */
-router.get('/fees', (req, res) => {
+router.get('/fees', (_req, res) => {
   res.json(getFeeConfig());
 });
 
-/**
- * GET /wallet/history
- * Get global transaction history
- */
 router.get('/history', (req, res) => {
-  const { limit } = req.query;
-  const history = getHistory(parseInt(limit) || 50);
-  res.json({ 
-    count: history.length,
-    transactions: history 
-  });
+  const limit = Number.parseInt(req.query.limit, 10) || 50;
+  const history = getHistory(limit);
+  res.json({ count: history.length, transactions: history });
 });
 
-/**
- * GET /wallet/tx/:hash
- * Get transaction receipt/status
- */
-router.get('/tx/:hash', async (req, res) => {
+router.get('/tx/:hash', validateRequest({ params: txParamsSchema, query: txQuerySchema }), async (req, res, next) => {
   try {
     const { hash } = req.params;
-    const { chain = 'base-sepolia' } = req.query;
-    
+    const { chain } = req.query;
+
     const receipt = await getTransactionReceipt(hash, chain);
     res.json(receipt);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * POST /wallet/estimate-gas
- * Estimate gas for a transaction
- */
-router.post('/estimate-gas', async (req, res) => {
+router.post('/estimate-gas', validateRequest({
+  body: z.object({
+    from: commonSchemas.address,
+    to: commonSchemas.address,
+    value: z.string().optional(),
+    data: z.string().optional(),
+    chain: commonSchemas.chain.optional()
+  })
+}), async (req, res, next) => {
   try {
-    const { from, to, value, data, chain } = req.body;
-    
-    if (!from || !to) {
-      return res.status(400).json({ error: 'from and to addresses are required' });
-    }
-
-    const estimate = await estimateGas({ from, to, value, data, chain });
+    const estimate = await estimateGas(req.body);
     res.json(estimate);
   } catch (error) {
-    console.error('Gas estimation error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-// ============================================================
-// DYNAMIC ROUTES (/:address)
-// ============================================================
-
-/**
- * GET /wallet/:address
- * Get wallet details
- */
-router.get('/:address', async (req, res) => {
+router.get('/:address', validateRequest({ params: walletAddressParamsSchema }), async (req, res, next) => {
   try {
     const { address } = req.params;
     const wallet = getWalletByAddress(address);
-    
+
     if (!wallet) {
-      return res.status(404).json({ error: `Wallet not found: ${address}` });
+      throw new AppError({ status: 404, code: 'NOT_FOUND', message: `Wallet not found: ${address}` });
     }
-    
+
     res.json({
       id: wallet.id,
       agentName: wallet.agentName,
@@ -176,102 +150,67 @@ router.get('/:address', async (req, res) => {
       createdAt: wallet.createdAt
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /wallet/:address/balance
- * Get wallet balance
- */
-router.get('/:address/balance', async (req, res) => {
+router.get('/:address/balance', validateRequest({
+  params: walletAddressParamsSchema,
+  query: z.object({ chain: commonSchemas.chain.optional() })
+}), async (req, res, next) => {
   try {
     const { address } = req.params;
     const { chain } = req.query;
     const balance = await getBalance(address, chain);
-    res.json({
-      address,
-      balance
-    });
+    res.json({ address, balance });
   } catch (error) {
-    console.error('Balance check error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /wallet/:address/balance/all
- * Get balance across all chains
- */
-router.get('/:address/balance/all', async (req, res) => {
+router.get('/:address/balance/all', validateRequest({ params: walletAddressParamsSchema }), async (req, res, next) => {
   try {
     const { address } = req.params;
     const balances = await getMultiChainBalance(address);
-    res.json({
-      address,
-      balances
-    });
+    res.json({ address, balances });
   } catch (error) {
-    console.error('Multi-chain balance error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * GET /wallet/:address/history
- * Get transaction history for a wallet
- */
-router.get('/:address/history', (req, res) => {
+router.get('/:address/history', validateRequest({ params: walletAddressParamsSchema }), (req, res) => {
   const { address } = req.params;
   const history = getWalletTransactions(address);
   res.json({ address, transactions: history });
 });
 
-/**
- * POST /wallet/:address/send
- * Send a transaction
- */
-router.post('/:address/send', requireAuth('write'), async (req, res) => {
+router.post('/:address/send', requireAuth('write'), validateRequest({
+  params: walletAddressParamsSchema,
+  body: sendBodySchema
+}), async (req, res, next) => {
   try {
     const { address } = req.params;
-    const { to, value = '0', data = '0x', chain } = req.body;
-    
-    if (!to) {
-      return res.status(400).json({ error: 'recipient address (to) is required' });
-    }
+    const { to, value, data, chain } = req.body;
 
     const tx = await signTransaction({ from: address, to, value, data, chain });
-    res.json({
-      success: true,
-      transaction: tx
-    });
+    res.json({ success: true, transaction: tx });
   } catch (error) {
-    console.error('Transaction error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
-/**
- * POST /wallet/:address/sweep
- * Sweep all funds to another address
- */
-router.post('/:address/sweep', requireAuth('write'), async (req, res) => {
+router.post('/:address/sweep', requireAuth('write'), validateRequest({
+  params: walletAddressParamsSchema,
+  body: sweepBodySchema
+}), async (req, res, next) => {
   try {
     const { address } = req.params;
     const { to, chain } = req.body;
-    
-    if (!to) {
-      return res.status(400).json({ error: 'recipient address (to) is required' });
-    }
 
     const result = await sweepWallet({ from: address, to, chain });
-    res.json({
-      success: true,
-      sweep: result
-    });
+    res.json({ success: true, sweep: result });
   } catch (error) {
-    console.error('Sweep error:', error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 

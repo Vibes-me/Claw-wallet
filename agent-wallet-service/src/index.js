@@ -1,9 +1,11 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import { randomUUID } from 'crypto';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
+import { classifyError } from './errors.js';
 
 dotenv.config();
 
@@ -11,6 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use((req, _res, next) => {
+  req.requestId = randomUUID();
+  next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -95,8 +101,15 @@ app.use('/ens', requireAuth('read'), ensRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  const normalizedError = classifyError(err);
+  console.error(`[${req.requestId}]`, normalizedError);
+
+  res.status(normalizedError.status).json({
+    code: normalizedError.code,
+    message: normalizedError.message,
+    details: normalizedError.details ?? null,
+    requestId: req.requestId
+  });
 });
 
 app.listen(PORT, () => {

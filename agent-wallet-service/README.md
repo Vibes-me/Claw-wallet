@@ -104,6 +104,80 @@ POST /identity/:agentId/revoke           Revoke identity
 GET  /identity/:agentId/credential       W3C Verifiable Credential
 ```
 
+
+## Standard Response Contract
+
+### Error responses
+
+All error responses now follow a shared envelope:
+
+```json
+{
+  "code": "INVALID_INPUT",
+  "message": "Invalid request input",
+  "details": [
+    { "path": "body.agentName", "message": "Required" }
+  ],
+  "requestId": "5bb0f53a-f4c9-4294-8d8f-9b2a2d7a9512"
+}
+```
+
+Status code mapping:
+- `400` Invalid input (`INVALID_INPUT`)
+- `404` Not found (`NOT_FOUND`)
+- `409` Conflict (`CONFLICT`)
+- `500` Internal error (`INTERNAL_ERROR`)
+
+### Example API responses
+
+```http
+POST /wallet/create
+```
+
+Success (`200`):
+```json
+{
+  "success": true,
+  "wallet": {
+    "id": "wallet_1700000000000",
+    "address": "0x1234...abcd",
+    "chain": "base-sepolia"
+  }
+}
+```
+
+Validation error (`400`):
+```json
+{
+  "code": "INVALID_INPUT",
+  "message": "Invalid request input",
+  "details": [
+    { "path": "agentName", "message": "Required" }
+  ],
+  "requestId": "5bb0f53a-f4c9-4294-8d8f-9b2a2d7a9512"
+}
+```
+
+Conflict (`409`, import existing wallet):
+```json
+{
+  "code": "CONFLICT",
+  "message": "Wallet already exists",
+  "details": null,
+  "requestId": "5bb0f53a-f4c9-4294-8d8f-9b2a2d7a9512"
+}
+```
+
+Not found (`404`):
+```json
+{
+  "code": "NOT_FOUND",
+  "message": "Identity not found",
+  "details": null,
+  "requestId": "5bb0f53a-f4c9-4294-8d8f-9b2a2d7a9512"
+}
+```
+
 ## SDK
 
 ```javascript
