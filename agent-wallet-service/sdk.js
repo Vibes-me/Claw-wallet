@@ -22,7 +22,10 @@ class AgentWallet {
   }
 
   async #request(path, { method = 'GET', body, query } = {}) {
-    const url = new URL(path, this.baseUrl);
+    const normalizedPath = String(path).replace(/^\/+/, '');
+    const baseUrl = new URL(this.baseUrl);
+    baseUrl.pathname = `${baseUrl.pathname.replace(/\/?$/, '/')}`;
+    const url = new URL(normalizedPath, baseUrl);
 
     if (query) {
       for (const [key, value] of Object.entries(query)) {
