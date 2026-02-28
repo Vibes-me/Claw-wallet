@@ -165,7 +165,9 @@ export async function createWallet({ agentName, chain = 'base-sepolia' }) {
       address: account.address,
       privateKey: encrypt(privateKey), // Encrypted at rest
       chain,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      securityMode: 'standard',
+      multisigConfigId: null
     };
 
     // Store wallet
@@ -307,7 +309,9 @@ export function getAllWallets() {
     agentName: w.agentName,
     address: w.address,
     chain: w.chain,
-    createdAt: w.createdAt
+    createdAt: w.createdAt,
+    securityMode: w.securityMode || 'standard',
+    multisigConfigId: w.multisigConfigId || null
   }));
 }
 
@@ -321,6 +325,31 @@ export function getWalletById(id) {
 /**
  * Get wallet by address
  */
+
+export function updateWalletSecurity({ address, securityMode, multisigConfigId = null }) {
+  const walletEntry = Array.from(wallets.entries()).find(([, wallet]) => 
+    wallet.address.toLowerCase() === address.toLowerCase()
+  );
+
+  if (!walletEntry) {
+    throw new Error(`Wallet not found: ${address}`);
+  }
+
+  const [walletId, wallet] = walletEntry;
+  wallet.securityMode = securityMode;
+  wallet.multisigConfigId = multisigConfigId;
+
+  wallets.set(walletId, wallet);
+  saveWallets(wallets);
+
+  return {
+    id: wallet.id,
+    address: wallet.address,
+    securityMode: wallet.securityMode,
+    multisigConfigId: wallet.multisigConfigId
+  };
+}
+
 export function getWalletByAddress(address) {
   return Array.from(wallets.values()).find(w => 
     w.address.toLowerCase() === address.toLowerCase()
@@ -347,7 +376,9 @@ export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAI
       privateKey: encrypt(privateKey), // Encrypted at rest
       chain,
       imported: true,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      securityMode: 'standard',
+      multisigConfigId: null
     };
 
     // Check if wallet already exists

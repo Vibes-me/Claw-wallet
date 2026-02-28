@@ -1,7 +1,5 @@
 /**
  * Transaction History Service
- * 
- * Simple transaction logging
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -22,43 +20,45 @@ function saveTransactions(txs) {
 
 let transactions = loadTransactions();
 
-/**
- * Log a transaction
- */
-export function logTransaction(tx) {
+export function logEvent(event) {
   const record = {
-    hash: tx.hash,
-    from: tx.from,
-    to: tx.to,
-    value: tx.value,
+    id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     timestamp: new Date().toISOString(),
-    chain: 'base-sepolia'
+    ...event
   };
-  
+
   transactions.unshift(record);
-  
-  // Keep last 100 transactions
-  if (transactions.length > 100) {
-    transactions = transactions.slice(0, 100);
+
+  if (transactions.length > 200) {
+    transactions = transactions.slice(0, 200);
   }
-  
+
   saveTransactions(transactions);
   return record;
 }
 
 /**
- * Get transaction history
+ * Log a transaction
  */
+export function logTransaction(tx) {
+  return logEvent({
+    type: 'transaction.sent',
+    hash: tx.hash,
+    from: tx.from,
+    to: tx.to,
+    value: tx.value,
+    chain: tx.chain || 'base-sepolia'
+  });
+}
+
 export function getHistory(limit = 10) {
   return transactions.slice(0, limit);
 }
 
-/**
- * Get transactions by wallet
- */
 export function getWalletTransactions(address) {
-  return transactions.filter(tx => 
-    tx.from.toLowerCase() === address.toLowerCase() ||
-    tx.to.toLowerCase() === address.toLowerCase()
+  return transactions.filter(tx =>
+    tx.from?.toLowerCase() === address.toLowerCase() ||
+    tx.to?.toLowerCase() === address.toLowerCase() ||
+    tx.walletAddress?.toLowerCase() === address.toLowerCase()
   );
 }

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
+import multisigRoutes from './routes/multisig.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
 
 dotenv.config();
@@ -12,13 +13,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     service: 'agent-wallet-service',
-    version: '0.4.0',
-    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens'],
+    version: '0.5.0',
+    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'multisig-v1-offchain'],
     chains: {
       testnets: ['base-sepolia', 'ethereum-sepolia', 'optimism-sepolia', 'arbitrum-sepolia'],
       mainnets: ['base', 'ethereum', 'polygon', 'optimism', 'arbitrum']
@@ -40,39 +40,28 @@ app.get('/health', (req, res) => {
         'POST /wallet/:address/send',
         'POST /wallet/:address/sweep'
       ],
-      identity: [
-        'POST /identity/create',
-        'GET /identity/list',
-        'GET /identity/types',
-        'GET /identity/capabilities',
-        'GET /identity/wallet/:address',
-        'GET /identity/:agentId',
-        'PATCH /identity/:agentId/capability',
-        'POST /identity/:agentId/revoke',
-        'GET /identity/:agentId/credential'
-      ],
-      ens: [
-        'GET /ens/check/:name',
-        'GET /ens/price/:name',
-        'POST /ens/register',
-        'GET /ens/list',
-        'GET /ens/:name'
+      multisig: [
+        'POST /multisig/config',
+        'POST /multisig/proposals',
+        'POST /multisig/proposals/:id/approve',
+        'POST /multisig/proposals/:id/execute',
+        'GET /multisig/proposals',
+        'GET /multisig/proposals/:id'
       ]
     }
   });
 });
 
-// Public routes (no auth required)
 app.get('/', (req, res) => {
   res.json({
     name: 'Agent Wallet Service',
-    version: '0.3.0',
+    version: '0.5.0',
     docs: 'https://github.com/agent-wallet-service',
-    auth: 'API key required for most endpoints. Use X-API-Key header.'
+    auth: 'API key required for most endpoints. Use X-API-Key header.',
+    note: 'Multisig v1 is off-chain approval coordination. v2 can integrate on-chain Safe execution.'
   });
 });
 
-// API Key management (admin only)
 app.post('/api-keys', requireAuth('admin'), (req, res) => {
   const { name, permissions } = req.body;
   const key = createApiKey(name, permissions);
@@ -88,12 +77,11 @@ app.delete('/api-keys/:prefix', requireAuth('admin'), (req, res) => {
   res.json({ success: revoked });
 });
 
-// Protected routes (auth required)
 app.use('/wallet', requireAuth('read'), walletRoutes);
 app.use('/identity', requireAuth('read'), identityRoutes);
 app.use('/ens', requireAuth('read'), ensRoutes);
+app.use('/multisig', requireAuth('read'), multisigRoutes);
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ error: err.message || 'Internal server error' });
@@ -101,5 +89,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`🦞 Agent Wallet Service running on port ${PORT}`);
-  console.log(`   Features: multi-chain, erc-8004, api-keys`);
+  console.log('   Features: multi-chain, erc-8004, api-keys, multisig-v1');
 });
