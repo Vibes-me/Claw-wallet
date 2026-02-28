@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
+import approvalsRoutes from './routes/approvals.js';
+import webhooksRoutes from './routes/webhooks.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
 
 dotenv.config();
@@ -39,6 +41,18 @@ app.get('/health', (req, res) => {
         'GET /wallet/:address/history',
         'POST /wallet/:address/send',
         'POST /wallet/:address/sweep'
+      ],
+      approvals: [
+        'GET /approvals',
+        'GET /approvals/:id',
+        'POST /approvals/:id/approve',
+        'POST /approvals/:id/reject'
+      ],
+      webhooks: [
+        'POST /webhooks/configs',
+        'GET /webhooks/configs',
+        'DELETE /webhooks/configs/:id',
+        'GET /webhooks/dead-letters'
       ],
       identity: [
         'POST /identity/create',
@@ -92,6 +106,8 @@ app.delete('/api-keys/:prefix', requireAuth('admin'), (req, res) => {
 app.use('/wallet', requireAuth('read'), walletRoutes);
 app.use('/identity', requireAuth('read'), identityRoutes);
 app.use('/ens', requireAuth('read'), ensRoutes);
+app.use('/approvals', requireAuth('read'), approvalsRoutes);
+app.use('/webhooks', requireAuth('read'), webhooksRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

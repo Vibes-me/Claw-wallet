@@ -4,10 +4,12 @@ import {
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
+import { createApprovalRequest, generateDeterministicRequestId } from '../services/approvals.js';
+import { emitWebhookEvent } from '../services/webhooks.js';
 
 const router = Router();
 
@@ -234,20 +236,52 @@ router.get('/:address/history', (req, res) => {
 router.post('/:address/send', requireAuth('write'), async (req, res) => {
   try {
     const { address } = req.params;
-    const { to, value = '0', data = '0x', chain } = req.body;
+    const { to, value = '0', data = '0x', chain, policyResult = {}, approvalTtlMs } = req.body;
     
     if (!to) {
       return res.status(400).json({ error: 'recipient address (to) is required' });
     }
 
-    const tx = await signTransaction({ from: address, to, value, data, chain });
-    res.json({
+    const transfer = { from: address, to, value, data, chain };
+
+    if (policyResult?.requiresApproval || req.body.requiresApproval === true) {
+      const requestId = generateDeterministicRequestId({
+        ...transfer,
+        policyId: policyResult.policyId,
+        policyVersion: policyResult.policyVersion
+      });
+
+      const approval = createApprovalRequest({
+        requestId,
+        transfer,
+        requestedBy: req.apiKey?.name,
+        ttlMs: approvalTtlMs
+      });
+
+      await emitWebhookEvent('transfer.approval_required', {
+        approvalId: approval.id,
+        requestId,
+        status: approval.status,
+        expiresAt: approval.expiresAt,
+        transfer: approval.transfer,
+        policyResult
+      });
+
+      return res.status(202).json({
+        success: true,
+        pending: true,
+        approval
+      });
+    }
+
+    const tx = await signTransaction(transfer);
+    return res.json({
       success: true,
       transaction: tx
     });
   } catch (error) {
     console.error('Transaction error:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
