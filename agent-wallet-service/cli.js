@@ -85,6 +85,30 @@ async function getTxStatus(hash, chain) {
   return res.json();
 }
 
+
+async function getPolicy(address) {
+  const res = await fetch(`${API}/policy/${address}`);
+  return res.json();
+}
+
+async function setPolicy(address, policy) {
+  const res = await fetch(`${API}/policy/${address}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(policy)
+  });
+  return res.json();
+}
+
+async function testPolicy(address, payload) {
+  const res = await fetch(`${API}/policy/${address}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
 // ============================================================
 // IDENTITY COMMANDS
 // ============================================================
@@ -385,6 +409,75 @@ async function main() {
       break;
     }
     
+
+    case 'policy': {
+      const [subCmd, ...subArgs] = args;
+
+      switch (subCmd) {
+        case 'get': {
+          const [address] = subArgs;
+          if (!address) {
+            console.log('Usage: cli.js policy get <walletAddress>');
+            break;
+          }
+          const result = await getPolicy(address);
+          if (result.error) {
+            console.log(`❌ Error: ${result.error}`);
+          } else {
+            console.log(`Policy for ${address}:`);
+            console.log(JSON.stringify(result.policy, null, 2));
+          }
+          break;
+        }
+
+        case 'set': {
+          const [address, dailyCap, perTxCap, allowedRecipients = '', blockedRecipients = '', allowedContracts = ''] = subArgs;
+          if (!address) {
+            console.log('Usage: cli.js policy set <walletAddress> [dailyCapWei] [perTxCapWei] [allowedRecipientsCsv] [blockedRecipientsCsv] [allowedContractsCsv]');
+            break;
+          }
+          const payload = {
+            dailyCap: dailyCap || null,
+            perTxCap: perTxCap || null,
+            allowedRecipients: allowedRecipients ? allowedRecipients.split(',').filter(Boolean) : [],
+            blockedRecipients: blockedRecipients ? blockedRecipients.split(',').filter(Boolean) : [],
+            allowedContracts: allowedContracts ? allowedContracts.split(',').filter(Boolean) : []
+          };
+          const result = await setPolicy(address, payload);
+          if (result.error) {
+            console.log(`❌ Error: ${result.error}`);
+          } else {
+            console.log('✅ Policy updated');
+            console.log(JSON.stringify(result.policy, null, 2));
+          }
+          break;
+        }
+
+        case 'test': {
+          const [address, to, value = '0', chain = 'base-sepolia'] = subArgs;
+          if (!address || !to) {
+            console.log('Usage: cli.js policy test <walletAddress> <to> [valueWei] [chain]');
+            break;
+          }
+          const result = await testPolicy(address, { to, value, chain });
+          if (result.error) {
+            console.log(`❌ Error: ${result.error}`);
+          } else {
+            console.log('Policy decision:');
+            console.log(JSON.stringify(result.decision, null, 2));
+          }
+          break;
+        }
+
+        default:
+          console.log('Policy Commands:');
+          console.log('  policy get <walletAddress>');
+          console.log('  policy set <walletAddress> [dailyCapWei] [perTxCapWei] [allowedRecipientsCsv] [blockedRecipientsCsv] [allowedContractsCsv]');
+          console.log('  policy test <walletAddress> <to> [valueWei] [chain]');
+      }
+      break;
+    }
+
     case 'demo': {
       console.log('🎬 Running full demo...\n');
       
@@ -435,6 +528,11 @@ async function main() {
       console.log('  identity list                           List all identities');
       console.log('  identity get <agentId>                  Get identity details');
       console.log('  identity wallet <address>               Identities by wallet');
+      console.log('');
+      console.log('  POLICY');
+      console.log('  policy get <wallet>         Get transfer policy');
+      console.log('  policy set <wallet> ...     Set transfer policy');
+      console.log('  policy test <wallet> <to>   Evaluate transfer against policy');
       console.log('');
       console.log('  OTHER');
       console.log('  demo                        Run interactive demo');

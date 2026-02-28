@@ -15,7 +15,8 @@ import {
 import { randomBytes } from 'crypto';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { logTransaction } from './tx-history.js';
+import { logTransaction, logPolicyDecision, getDailyOutgoingTotal } from './tx-history.js';
+import { evaluateTransfer } from './policy-engine.js';
 import { encrypt, decrypt } from './encryption.js';
 
 // ============================================================
@@ -215,6 +216,35 @@ export async function getBalance(address, chain) {
   }
 }
 
+
+function enforcePolicy({ wallet, to, valueWei, chainName, timestamp = new Date().toISOString() }) {
+  const dailySpent = getDailyOutgoingTotal(wallet.address, timestamp);
+  const policyDecision = evaluateTransfer({
+    walletAddress: wallet.address,
+    agentId: wallet.id,
+    chain: chainName,
+    to,
+    value: valueWei,
+    token: 'native',
+    timestamp,
+    dailySpent
+  });
+
+  logPolicyDecision({
+    from: wallet.address,
+    to,
+    value: valueWei.toString(),
+    chain: chainName,
+    ...policyDecision
+  });
+
+  if (!policyDecision.allowed) {
+    throw new Error(`Policy blocked transfer: ${policyDecision.reasonCode}`);
+  }
+
+  return policyDecision;
+}
+
 /**
  * Sign and send a transaction
  */
@@ -228,8 +258,15 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
   // Use provided chain or wallet's chain
   const chainName = chain || wallet.chain || DEFAULT_CHAIN;
   const chainConfig = getChainConfig(chainName);
+  const valueWei = parseEther(value || '0');
 
   try {
+    const policyDecision = enforcePolicy({
+      wallet,
+      to,
+      valueWei,
+      chainName
+    });
     // Decrypt private key for use
     const decryptedKey = decrypt(wallet.privateKey);
     const account = privateKeyToAccount(decryptedKey);
@@ -248,7 +285,7 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
 
     const hash = await walletClient.sendTransaction({
       to,
-      value: parseEther(value),
+      value: valueWei,
       data
     });
 
@@ -259,8 +296,9 @@ export async function signTransaction({ from, to, value, data = '0x', chain }) {
       hash,
       from,
       to,
-      value,
-      chain: chainName
+      value: valueWei.toString(),
+      chain: chainName,
+      policyDecision
     };
     logTransaction(txRecord);
 
@@ -513,6 +551,13 @@ export async function sweepWallet({ from, to, chain }) {
       throw new Error('Insufficient balance to cover gas');
     }
     
+    const policyDecision = enforcePolicy({
+      wallet,
+      to,
+      valueWei: amountToSend,
+      chainName
+    });
+
     // Create wallet client
     const account = privateKeyToAccount(decrypt(wallet.privateKey));
     const walletClient = createWalletClient({
@@ -525,6 +570,15 @@ export async function sweepWallet({ from, to, chain }) {
       to,
       value: amountToSend,
       data: '0x'
+    });
+
+    logTransaction({
+      hash,
+      from,
+      to,
+      value: amountToSend.toString(),
+      chain: chainName,
+      policyDecision
     });
     
     return {

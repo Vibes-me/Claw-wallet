@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
+import policyRoutes from './routes/policy.js';
 import { requireAuth, createApiKey, listApiKeys, revokeApiKey } from './middleware/auth.js';
 
 dotenv.config();
@@ -18,7 +19,7 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     service: 'agent-wallet-service',
     version: '0.4.0',
-    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens'],
+    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine'],
     chains: {
       testnets: ['base-sepolia', 'ethereum-sepolia', 'optimism-sepolia', 'arbitrum-sepolia'],
       mainnets: ['base', 'ethereum', 'polygon', 'optimism', 'arbitrum']
@@ -57,6 +58,11 @@ app.get('/health', (req, res) => {
         'POST /ens/register',
         'GET /ens/list',
         'GET /ens/:name'
+      ],
+      policy: [
+        'GET /policy/:walletAddress',
+        'PUT /policy/:walletAddress',
+        'POST /policy/:walletAddress/test'
       ]
     }
   });
@@ -92,6 +98,7 @@ app.delete('/api-keys/:prefix', requireAuth('admin'), (req, res) => {
 app.use('/wallet', requireAuth('read'), walletRoutes);
 app.use('/identity', requireAuth('read'), identityRoutes);
 app.use('/ens', requireAuth('read'), ensRoutes);
+app.use('/policy', requireAuth('read'), policyRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
