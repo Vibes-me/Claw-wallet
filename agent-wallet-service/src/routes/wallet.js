@@ -4,7 +4,7 @@ import {
   createWallet, getBalance, signTransaction, 
   getAllWallets, getSupportedChains, importWallet,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getWalletByAddress
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';

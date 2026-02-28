@@ -7,6 +7,13 @@
  */
 
 const API = 'http://localhost:3000';
+const API_KEY = process.env.AGENT_WALLET_API_KEY || process.env.API_KEY || '';
+
+function buildHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (API_KEY) headers['X-API-Key'] = API_KEY;
+  return headers;
+}
 
 // ============================================================
 // WALLET COMMANDS
@@ -15,7 +22,7 @@ const API = 'http://localhost:3000';
 async function createWallet(name, chain = 'base-sepolia') {
   const res = await fetch(`${API}/wallet/create`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ agentName: name, chain })
   });
   return res.json();
@@ -24,7 +31,7 @@ async function createWallet(name, chain = 'base-sepolia') {
 async function importWallet(privateKey, name, chain) {
   const res = await fetch(`${API}/wallet/import`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ privateKey, agentName: name, chain })
   });
   return res.json();
@@ -34,33 +41,33 @@ async function getBalance(address, chain) {
   const url = chain 
     ? `${API}/wallet/${address}/balance?chain=${chain}`
     : `${API}/wallet/${address}/balance`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: buildHeaders() });
   return res.json();
 }
 
 async function getAllBalances(address) {
-  const res = await fetch(`${API}/wallet/${address}/balance/all`);
+  const res = await fetch(`${API}/wallet/${address}/balance/all`, { headers: buildHeaders() });
   return res.json();
 }
 
 async function sendTransaction(from, to, value, chain) {
   const res = await fetch(`${API}/wallet/${from}/send`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ to, value, chain })
   });
   return res.json();
 }
 
 async function listWallets() {
-  const res = await fetch(`${API}/wallet/list`);
+  const res = await fetch(`${API}/wallet/list`, { headers: buildHeaders() });
   return res.json();
 }
 
 async function sweepWallet(from, to, chain) {
   const res = await fetch(`${API}/wallet/${from}/sweep`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ to, chain })
   });
   return res.json();
@@ -69,19 +76,19 @@ async function sweepWallet(from, to, chain) {
 async function estimateGas(from, to, value, chain) {
   const res = await fetch(`${API}/wallet/estimate-gas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ from, to, value, chain })
   });
   return res.json();
 }
 
 async function listChains() {
-  const res = await fetch(`${API}/wallet/chains`);
+  const res = await fetch(`${API}/wallet/chains`, { headers: buildHeaders() });
   return res.json();
 }
 
 async function getTxStatus(hash, chain) {
-  const res = await fetch(`${API}/wallet/tx/${hash}?chain=${chain || 'base-sepolia'}`);
+  const res = await fetch(`${API}/wallet/tx/${hash}?chain=${chain || 'base-sepolia'}`, { headers: buildHeaders() });
   return res.json();
 }
 
@@ -92,7 +99,7 @@ async function getTxStatus(hash, chain) {
 async function createIdentity(walletAddress, name, type = 'assistant') {
   const res = await fetch(`${API}/identity/create`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(),
     body: JSON.stringify({ 
       walletAddress, 
       agentName: name, 
@@ -104,17 +111,17 @@ async function createIdentity(walletAddress, name, type = 'assistant') {
 }
 
 async function listIdentities() {
-  const res = await fetch(`${API}/identity/list`);
+  const res = await fetch(`${API}/identity/list`, { headers: buildHeaders() });
   return res.json();
 }
 
 async function getIdentity(agentId) {
-  const res = await fetch(`${API}/identity/${agentId}`);
+  const res = await fetch(`${API}/identity/${agentId}`, { headers: buildHeaders() });
   return res.json();
 }
 
 async function getIdentitiesByWallet(address) {
-  const res = await fetch(`${API}/identity/wallet/${address}`);
+  const res = await fetch(`${API}/identity/wallet/${address}`, { headers: buildHeaders() });
   return res.json();
 }
 
