@@ -2,9 +2,9 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { 
   createWallet, getBalance, signTransaction, 
-  getAllWallets, getSupportedChains, importWallet,
+  getAllWallets, getSupportedChains, importWallet, getWalletByAddress,
   getTransactionReceipt, getMultiChainBalance, 
-  estimateGas, sweepWallet
+  estimateGas, sweepWallet, getSupportedProviders
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
@@ -21,19 +21,20 @@ const router = Router();
  */
 router.post('/create', requireAuth('write'), async (req, res) => {
   try {
-    const { agentName, chain = 'base-sepolia' } = req.body;
+    const { agentName, chain = 'base-sepolia', provider } = req.body;
     
     if (!agentName) {
       return res.status(400).json({ error: 'agentName is required' });
     }
 
-    const wallet = await createWallet({ agentName, chain });
+    const wallet = await createWallet({ agentName, chain, provider });
     res.json({
       success: true,
       wallet: {
         id: wallet.id,
         address: wallet.address,
-        chain: wallet.chain
+        chain: wallet.chain,
+        provider: wallet.provider
       }
     });
   } catch (error) {
@@ -48,13 +49,13 @@ router.post('/create', requireAuth('write'), async (req, res) => {
  */
 router.post('/import', requireAuth('write'), async (req, res) => {
   try {
-    const { privateKey, agentName, chain } = req.body;
+    const { privateKey, agentName, chain, provider } = req.body;
     
     if (!privateKey) {
       return res.status(400).json({ error: 'privateKey is required' });
     }
 
-    const wallet = await importWallet({ privateKey, agentName, chain });
+    const wallet = await importWallet({ privateKey, agentName, chain, provider });
     res.json({
       success: true,
       wallet
@@ -89,6 +90,8 @@ router.get('/chains', (req, res) => {
   const chains = getSupportedChains();
   res.json({ 
     default: 'base-sepolia',
+    defaultProvider: process.env.WALLET_PROVIDER || (process.env.ALCHEMY_API_KEY ? 'alchemy' : 'public'),
+    supportedProviders: getSupportedProviders(),
     count: chains.length,
     chains 
   });
@@ -122,9 +125,9 @@ router.get('/history', (req, res) => {
 router.get('/tx/:hash', async (req, res) => {
   try {
     const { hash } = req.params;
-    const { chain = 'base-sepolia' } = req.query;
+    const { chain = 'base-sepolia', provider } = req.query;
     
-    const receipt = await getTransactionReceipt(hash, chain);
+    const receipt = await getTransactionReceipt(hash, chain, provider);
     res.json(receipt);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -137,13 +140,13 @@ router.get('/tx/:hash', async (req, res) => {
  */
 router.post('/estimate-gas', async (req, res) => {
   try {
-    const { from, to, value, data, chain } = req.body;
+    const { from, to, value, data, chain, provider } = req.body;
     
     if (!from || !to) {
       return res.status(400).json({ error: 'from and to addresses are required' });
     }
 
-    const estimate = await estimateGas({ from, to, value, data, chain });
+    const estimate = await estimateGas({ from, to, value, data, chain, provider });
     res.json(estimate);
   } catch (error) {
     console.error('Gas estimation error:', error);
@@ -173,6 +176,7 @@ router.get('/:address', async (req, res) => {
       agentName: wallet.agentName,
       address: wallet.address,
       chain: wallet.chain,
+      provider: wallet.provider,
       createdAt: wallet.createdAt
     });
   } catch (error) {
@@ -187,8 +191,8 @@ router.get('/:address', async (req, res) => {
 router.get('/:address/balance', async (req, res) => {
   try {
     const { address } = req.params;
-    const { chain } = req.query;
-    const balance = await getBalance(address, chain);
+    const { chain, provider } = req.query;
+    const balance = await getBalance(address, chain, provider);
     res.json({
       address,
       balance
@@ -206,7 +210,8 @@ router.get('/:address/balance', async (req, res) => {
 router.get('/:address/balance/all', async (req, res) => {
   try {
     const { address } = req.params;
-    const balances = await getMultiChainBalance(address);
+    const { provider } = req.query;
+    const balances = await getMultiChainBalance(address, provider);
     res.json({
       address,
       balances
@@ -234,13 +239,13 @@ router.get('/:address/history', (req, res) => {
 router.post('/:address/send', requireAuth('write'), async (req, res) => {
   try {
     const { address } = req.params;
-    const { to, value = '0', data = '0x', chain } = req.body;
+    const { to, value = '0', data = '0x', chain, provider } = req.body;
     
     if (!to) {
       return res.status(400).json({ error: 'recipient address (to) is required' });
     }
 
-    const tx = await signTransaction({ from: address, to, value, data, chain });
+    const tx = await signTransaction({ from: address, to, value, data, chain, provider });
     res.json({
       success: true,
       transaction: tx
@@ -258,13 +263,13 @@ router.post('/:address/send', requireAuth('write'), async (req, res) => {
 router.post('/:address/sweep', requireAuth('write'), async (req, res) => {
   try {
     const { address } = req.params;
-    const { to, chain } = req.body;
+    const { to, chain, provider } = req.body;
     
     if (!to) {
       return res.status(400).json({ error: 'recipient address (to) is required' });
     }
 
-    const result = await sweepWallet({ from: address, to, chain });
+    const result = await sweepWallet({ from: address, to, chain, provider });
     res.json({
       success: true,
       sweep: result

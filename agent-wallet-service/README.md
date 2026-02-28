@@ -23,7 +23,7 @@ Add wallet functionality to any AI agent in seconds. No blockchain SDKs, no key 
 | arbitrum-sepolia ✓ | optimism |
 | | arbitrum |
 
-Each chain has fallback RPCs for reliability.
+Each chain has fallback RPCs for reliability, resolved through an adapter registry (chain + provider).
 
 ### 🆔 ERC-8004 Agent Identity
 
@@ -58,6 +58,7 @@ node cli.js sweep 0xfrom 0xto      # Send all funds
 node cli.js estimate 0xfrom 0xto 0.001
 node cli.js list
 node cli.js chains
+# Optional provider override via env/query/body: alchemy | public | custom
 
 # Identity commands (ERC-8004)
 node cli.js identity create 0xwallet BotName assistant
@@ -68,6 +69,27 @@ node cli.js identity wallet 0xaddress
 # Demo
 node cli.js demo
 ```
+
+
+## Provider Configuration
+
+Provider selection is configurable globally or per request:
+
+- `WALLET_PROVIDER=alchemy|public|custom` (default provider)
+- `ALCHEMY_API_KEY=...` (used when provider is `alchemy`)
+- `CUSTOM_RPC_URL=...` (global custom RPC endpoint)
+- `CUSTOM_RPC_<CHAIN>=...` per-chain override, e.g. `CUSTOM_RPC_BASE_SEPOLIA=...`
+
+Per-request overrides are accepted in wallet API query/body fields as `provider`.
+
+## Adapter Plugins
+
+Chain integrations are implemented as adapters with a common contract and registry:
+
+- Contract: `src/services/adapters/types.js`
+- Default adapter: `src/services/adapters/viem-adapter.js`
+- Registry: `src/services/adapters/registry.js`
+- Plugin docs: `docs/adapter-plugins.md`
 
 ## API Endpoints
 
@@ -130,7 +152,11 @@ src/
 │   ├── wallet.js               Wallet endpoints
 │   └── identity.js             ERC-8004 endpoints
 ├── services/
-│   ├── viem-wallet.js          Core wallet ops
+│   ├── viem-wallet.js          Wallet service + adapter resolution
+│   ├── adapters/
+│   │   ├── types.js            Adapter contract
+│   │   ├── viem-adapter.js     Default viem implementation
+│   │   └── registry.js         Chain/provider adapter registry
 │   ├── agent-identity.js       ERC-8004 identity
 │   ├── fee-collector.js        Fee calculations
 │   └── tx-history.js           Transaction logging
