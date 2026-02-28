@@ -4,7 +4,85 @@
 
 Add wallet functionality to any AI agent in seconds. No blockchain SDKs, no key management, no contract deployment.
 
-## Status: ✅ Production Ready v0.3.0
+## 5-minute Quickstart (end-to-end)
+
+> Goal: start the server, create an API key, create a wallet, send a test tx, and verify tx status.
+
+1) **Install and start the service**
+
+```bash
+npm install
+npm start
+```
+
+2) **Create an admin API key** (in another terminal)
+
+When the server starts for the first time, it generates a bootstrap admin key and writes it to `api-keys.json`.
+
+```bash
+export BOOTSTRAP_KEY=$(node -e "console.log(JSON.parse(require('fs').readFileSync('api-keys.json','utf8'))[0].key)")
+
+curl -s -X POST http://localhost:3000/api-keys \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $BOOTSTRAP_KEY" \
+  -d '{"name":"quickstart-admin","permissions":["admin","write","read"]}'
+```
+
+Copy the returned `key` value and export it:
+
+```bash
+export API_KEY="<paste-generated-key>"
+```
+
+3) **Create a wallet**
+
+```bash
+curl -s -X POST http://localhost:3000/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"agentName":"QuickstartBot","chain":"base-sepolia"}'
+```
+
+Copy the returned wallet address:
+
+```bash
+export FROM_WALLET="0x..."
+```
+
+4) **Send a test transaction**
+
+> Use a funded test wallet. For a safe dry run, call `estimate-gas` first.
+
+```bash
+# Optional dry run
+curl -s -X POST http://localhost:3000/wallet/estimate-gas \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"from":"'"$FROM_WALLET"'","to":"0x000000000000000000000000000000000000dead","value":"0.000001","chain":"base-sepolia"}'
+
+# Send
+curl -s -X POST http://localhost:3000/wallet/$FROM_WALLET/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{"to":"0x000000000000000000000000000000000000dead","value":"0.000001","chain":"base-sepolia"}'
+```
+
+Copy the transaction hash:
+
+```bash
+export TX_HASH="0x..."
+```
+
+5) **Verify transaction status**
+
+```bash
+curl -s "http://localhost:3000/wallet/tx/$TX_HASH?chain=base-sepolia" \
+  -H "X-API-Key: $API_KEY"
+```
+
+---
+
+## Status: ✅ Production Ready v0.1.0
 
 - Multi-chain support (9 chains)
 - ERC-8004 AI Agent Identity
@@ -39,11 +117,41 @@ On-chain identity for AI agents:
 - Role-based permissions (read/write/admin)
 - Rate limiting built-in
 
-## Quick Start
+## Role-specific snippets
+
+### 1) Backend API service (server-to-server)
 
 ```bash
-npm install
-npm start
+# health
+curl -s http://localhost:3000/health
+
+# check a wallet balance
+curl -s "http://localhost:3000/wallet/0xYourWallet/balance?chain=base-sepolia" \
+  -H "X-API-Key: $API_KEY"
+```
+
+### 2) CLI-only operator
+
+```bash
+# via package script
+npm run cli -- create OpsBot base-sepolia
+npm run cli -- list
+npm run cli -- chains
+npm run cli -- balance 0xYourWallet
+npm run cli -- send 0xFrom 0xTo 0.001
+```
+
+### 3) SDK integration (Node)
+
+```javascript
+import AgentWallet from './sdk.js';
+
+const wallet = new AgentWallet('http://localhost:3000');
+
+const created = await wallet.createWallet('SdkBot');
+const balance = await wallet.getBalance(created.wallet.address);
+const tx = await wallet.send(created.wallet.address, '0x000000000000000000000000000000000000dead', '0.000001');
+console.log({ created, balance, tx });
 ```
 
 ## CLI Usage
@@ -54,7 +162,7 @@ node cli.js create MyBot base-sepolia
 node cli.js balance 0x...
 node cli.js balances 0x...          # All chains
 node cli.js send 0xfrom 0xto 0.001
-node cli.js sweep 0xfrom 0xto      # Send all funds
+node cli.js sweep 0xfrom 0xto       # Send all funds
 node cli.js estimate 0xfrom 0xto 0.001
 node cli.js list
 node cli.js chains
@@ -69,23 +177,34 @@ node cli.js identity wallet 0xaddress
 node cli.js demo
 ```
 
-## API Endpoints
+## API Endpoints (runtime)
+
+### Core + API key management
+
+```
+GET    /                                 Service metadata
+GET    /health                           Health + features + endpoint index
+POST   /api-keys                         Create API key (admin)
+GET    /api-keys                         List API keys (admin)
+DELETE /api-keys/:prefix                 Revoke API key (admin)
+```
 
 ### Wallet
 
 ```
-POST /wallet/create          Create new wallet
-POST /wallet/import          Import from private key
-GET  /wallet/list            List all wallets
-GET  /wallet/chains          Supported chains
-GET  /wallet/fees            Fee configuration
-GET  /wallet/history         Transaction history
-POST /wallet/estimate-gas    Estimate gas cost
-GET  /wallet/tx/:hash        Get transaction status
+POST /wallet/create                      Create new wallet
+POST /wallet/import                      Import from private key
+GET  /wallet/list                        List all wallets
+GET  /wallet/chains                      Supported chains
+GET  /wallet/fees                        Fee configuration
+GET  /wallet/history                     Global transaction history
+GET  /wallet/tx/:hash                    Transaction status/receipt
+POST /wallet/estimate-gas                Estimate gas cost
 
 GET  /wallet/:address                    Wallet details
-GET  /wallet/:address/balance            Balance on wallet's chain
+GET  /wallet/:address/balance            Balance on wallet chain (or ?chain=)
 GET  /wallet/:address/balance/all        Balance across all chains
+GET  /wallet/:address/history            Wallet transaction history
 POST /wallet/:address/send               Send transaction
 POST /wallet/:address/sweep              Sweep all funds
 ```
@@ -93,33 +212,36 @@ POST /wallet/:address/sweep              Sweep all funds
 ### Identity (ERC-8004)
 
 ```
-POST /identity/create                    Create agent identity
-GET  /identity/list                      List all identities
-GET  /identity/types                     Agent types
-GET  /identity/capabilities              Supported capabilities
-GET  /identity/wallet/:address           Identities by wallet
-GET  /identity/:agentId                  Get identity
+POST  /identity/create                   Create agent identity
+GET   /identity/list                     List all identities
+GET   /identity/types                    Agent types
+GET   /identity/capabilities             Supported capabilities
+GET   /identity/wallet/:address          Identities by wallet
+GET   /identity/:agentId                 Get identity
 PATCH /identity/:agentId/capability      Update capability
-POST /identity/:agentId/revoke           Revoke identity
-GET  /identity/:agentId/credential       W3C Verifiable Credential
+POST  /identity/:agentId/revoke          Revoke identity
+GET   /identity/:agentId/credential      W3C Verifiable Credential
 ```
 
-## SDK
+### ENS
 
-```javascript
-import AgentWallet from './sdk.js';
-
-const wallet = new AgentWallet();
-
-// Create wallet
-const { wallet: w } = await wallet.createWallet('MyBot', 'base-sepolia');
-
-// Check balance
-const bal = await wallet.getBalance(w.address);
-
-// Send transaction
-const tx = await wallet.send(w.address, '0x...', '0.001');
 ```
+GET  /ens/check/:name                    Check ENS availability
+GET  /ens/price/:name                    Get registration price
+POST /ens/register                       Register ENS name
+GET  /ens/list                           List managed ENS names
+GET  /ens/:name                          Resolve ENS details
+```
+
+## Common errors
+
+| Error case | HTTP status | Typical message | What to do |
+|---|---:|---|---|
+| Missing API key | 401 | `API key required` | Send `X-API-Key` header (or `?apiKey=` query param). |
+| Invalid API key | 403 | `Invalid API key` | Ensure the key exists and has not been revoked. |
+| Invalid chain | 400 or 500 | `Unsupported chain` / chain validation error | Call `GET /wallet/chains` and use one of the returned chain IDs. |
+| Insufficient funds | 500 | `insufficient funds` | Fund the sender on the same chain and reduce transfer amount to account for gas. |
+| RPC fallback failures | 500 | `All RPC endpoints failed` / transport errors | Retry shortly; verify RPC/network connectivity and try another supported chain. |
 
 ## Architecture
 
