@@ -109,16 +109,19 @@ GET  /identity/:agentId/credential       W3C Verifiable Credential
 ```javascript
 import AgentWallet from './sdk.js';
 
-const wallet = new AgentWallet();
+const wallet = new AgentWallet({
+  baseUrl: 'http://localhost:3000',
+  apiKey: process.env.AGENT_WALLET_API_KEY
+});
 
 // Create wallet
-const { wallet: w } = await wallet.createWallet('MyBot', 'base-sepolia');
+const { wallet: w } = await wallet.createWallet('MyBot', { chain: 'base-sepolia' });
 
 // Check balance
-const bal = await wallet.getBalance(w.address);
+const bal = await wallet.getBalance(w.address, { chain: 'base-sepolia' });
 
 // Send transaction
-const tx = await wallet.send(w.address, '0x...', '0.001');
+const tx = await wallet.send(w.address, '0x...', '0.001', { chain: 'base-sepolia' });
 ```
 
 ## Architecture
