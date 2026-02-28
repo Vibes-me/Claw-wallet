@@ -9,6 +9,7 @@ import {
 } from '../services/viem-wallet.js';
 import { getFeeConfig } from '../services/fee-collector.js';
 import { getHistory, getWalletTransactions } from '../services/tx-history.js';
+import { getPolicy, setPolicy, evaluateTransferPolicy } from '../services/policy-engine.js';
 
 const router = Router();
 
@@ -94,6 +95,57 @@ router.get('/chains', (req, res) => {
     chains 
   });
 });
+
+/**
+ * GET /wallet/policy/:address
+ * Get wallet policy
+ */
+router.get('/policy/:address', (req, res) => {
+  try {
+    const { address } = req.params;
+    const policy = getPolicy(address);
+    res.json({ address, policy });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /wallet/policy/:address
+ * Upsert wallet policy
+ */
+router.put('/policy/:address', requireAuth('write'), (req, res) => {
+  try {
+    const { address } = req.params;
+    const policy = setPolicy(address, req.body || {});
+    res.json({ success: true, address, policy });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /wallet/policy/:address/evaluate
+ * Evaluate policy without sending a transaction
+ */
+router.post('/policy/:address/evaluate', (req, res) => {
+  try {
+    const { address } = req.params;
+    const { to, value = '0', chain } = req.body;
+
+    const evaluation = evaluateTransferPolicy({
+      walletAddress: address,
+      to,
+      valueEth: value,
+      chain
+    });
+
+    res.json({ address, evaluation });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 
 /**
  * GET /wallet/fees
