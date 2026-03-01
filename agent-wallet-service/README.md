@@ -4,80 +4,72 @@
 
 Add wallet functionality to any AI agent in seconds. No blockchain SDKs, no key management, no contract deployment.
 
-## 5-minute Quickstart (end-to-end)
+## 5-minute Quickstart (copy once)
 
-> Goal: start the server, create an API key, create a wallet, send a test tx, and verify tx status.
+> Goal: start the server, create a scoped API key, create a wallet, and verify balance with one paste.
 
-1) **Install and start the service**
+### 0) Start the service
 
 ```bash
 npm install
 npm start
 ```
 
-2) **Create an admin API key** (in another terminal)
-
-When the server starts for the first time, it generates a bootstrap admin key and writes it to `api-keys.json`.
+### 1) In a second terminal, run this single block
 
 ```bash
-export BOOTSTRAP_KEY=$(node -e "console.log(JSON.parse(require('fs').readFileSync('api-keys.json','utf8'))[0].key)")
+set -euo pipefail
 
-curl -s -X POST http://localhost:3000/api-keys \
-  -H "Content-Type: application/json" \
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required for this copy-once flow."
+  echo "Install jq: brew install jq   # macOS"
+  echo "         sudo apt-get install jq   # Debian/Ubuntu"
+  echo "Or use CLI onboarding instead: node cli.js setup --init"
+  exit 1
+fi
+
+# Edit only if your server is not on localhost:3000
+export AGENT_WALLET_API="http://localhost:3000"
+
+# 1) Read bootstrap admin key created on first startup
+export BOOTSTRAP_KEY="$(node -e "console.log(JSON.parse(require('fs').readFileSync('api-keys.json','utf8'))[0].key)")"
+echo "bootstrap key: ${BOOTSTRAP_KEY:0:12}..."
+
+# 2) Create scoped app key (read/write)
+APP_KEY_JSON="$(curl -sS -X POST "$AGENT_WALLET_API/api-keys" \
+  -H 'Content-Type: application/json' \
   -H "X-API-Key: $BOOTSTRAP_KEY" \
-  -d '{"name":"quickstart-admin","permissions":["admin","write","read"]}'
+  -d '{"name":"quickstart","permissions":["read","write"]}')"
+
+echo "$APP_KEY_JSON" | jq -e '.success == true and (.key.key | startswith("sk_"))' >/dev/null
+export AGENT_WALLET_API_KEY="$(echo "$APP_KEY_JSON" | jq -r '.key.key')"
+echo "✅ key created: ${AGENT_WALLET_API_KEY:0:12}..."
+
+# 3) Create wallet
+WALLET_JSON="$(curl -sS -X POST "$AGENT_WALLET_API/wallet/create" \
+  -H 'Content-Type: application/json' \
+  -H "X-API-Key: $AGENT_WALLET_API_KEY" \
+  -d '{"agentName":"QuickstartBot","chain":"base-sepolia"}')"
+
+echo "$WALLET_JSON" | jq -e '.success == true and (.wallet.address | startswith("0x"))' >/dev/null
+export FROM_WALLET="$(echo "$WALLET_JSON" | jq -r '.wallet.address')"
+echo "✅ wallet created: $FROM_WALLET"
+
+# 4) Verify balance
+BALANCE_JSON="$(curl -sS "$AGENT_WALLET_API/wallet/$FROM_WALLET/balance?chain=base-sepolia" \
+  -H "X-API-Key: $AGENT_WALLET_API_KEY")"
+
+echo "$BALANCE_JSON" | jq -e '.balance.chain == "base-sepolia"' >/dev/null
+echo "$BALANCE_JSON" | jq '{chain: .balance.chain, eth: .balance.eth, rpc: .balance.rpc}'
+echo "✅ balance verified"
 ```
 
-Copy the returned `key` value and export it:
+### No `jq`?
+
+Use CLI onboarding instead (no JSON parsing required):
 
 ```bash
-export API_KEY="<paste-generated-key>"
-```
-
-3) **Create a wallet**
-
-```bash
-curl -s -X POST http://localhost:3000/wallet/create \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d '{"agentName":"QuickstartBot","chain":"base-sepolia"}'
-```
-
-Copy the returned wallet address:
-
-```bash
-export FROM_WALLET="0x..."
-```
-
-4) **Send a test transaction**
-
-> Use a funded test wallet. For a safe dry run, call `estimate-gas` first.
-
-```bash
-# Optional dry run
-curl -s -X POST http://localhost:3000/wallet/estimate-gas \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d '{"from":"'"$FROM_WALLET"'","to":"0x000000000000000000000000000000000000dead","value":"0.000001","chain":"base-sepolia"}'
-
-# Send
-curl -s -X POST http://localhost:3000/wallet/$FROM_WALLET/send \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d '{"to":"0x000000000000000000000000000000000000dead","value":"0.000001","chain":"base-sepolia"}'
-```
-
-Copy the transaction hash:
-
-```bash
-export TX_HASH="0x..."
-```
-
-5) **Verify transaction status**
-
-```bash
-curl -s "http://localhost:3000/wallet/tx/$TX_HASH?chain=base-sepolia" \
-  -H "X-API-Key: $API_KEY"
+node cli.js setup --init
 ```
 
 ---
@@ -160,31 +152,12 @@ const tx = await wallet.send(created.wallet.address, '0x000000000000000000000000
 console.log({ created, balance, tx });
 ```
 
-### First-run copy/paste flow (create key + create wallet + check balance)
+### First-run onboarding
+
+Use the **copy-once quickstart** at the top of this README, or run:
 
 ```bash
-# 1) Verify setup state and copy examples
-curl http://localhost:3000/onboarding
-
-# 2) Create an app API key (replace with your bootstrap admin key)
-export ADMIN_API_KEY='sk_live_...'
-curl -X POST http://localhost:3000/api-keys \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $ADMIN_API_KEY" \
-  -d '{"name":"quickstart","permissions":["read","write"]}'
-
-# 3) Use the returned key for app calls
-export API_KEY='sk_...'
-
-# 4) Create wallet
-curl -X POST http://localhost:3000/wallet/create \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $API_KEY" \
-  -d '{"agentName":"MyBot","chain":"base-sepolia"}'
-
-# 5) Check balance (replace ADDRESS with wallet address from previous step)
-curl http://localhost:3000/wallet/ADDRESS/balance \
-  -H "X-API-Key: $API_KEY"
+node cli.js setup --init
 ```
 
 ## CLI Usage
@@ -205,6 +178,15 @@ node cli.js identity create 0xwallet BotName assistant
 node cli.js identity list
 node cli.js identity get agent:xxx
 node cli.js identity wallet 0xaddress
+
+# ENS commands
+node cli.js ens list
+node cli.js ens get myagent.eth
+node cli.js ens check myagent.eth
+
+# Setup helper
+node cli.js setup
+node cli.js setup --init   # health + onboarding + scoped key + .env.local
 
 # Demo
 node cli.js demo
