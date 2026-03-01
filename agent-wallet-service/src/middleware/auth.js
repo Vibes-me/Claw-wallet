@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 
 const API_KEYS_FILE = join(process.cwd(), 'api-keys.json');
 const ONBOARDING_PATH = '/onboarding';
+const ALLOW_QUERY_API_KEY = process.env.ALLOW_QUERY_API_KEY === 'true';
 
 // Rate limiting config
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -152,13 +153,15 @@ export function requireAuth(requiredPermission = 'read') {
       return next();
     }
 
-    // Get API key from header or query
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    // Get API key from header (query fallback is opt-in for local dev only)
+    const apiKey = req.headers['x-api-key'] || (ALLOW_QUERY_API_KEY ? req.query.apiKey : undefined);
 
     if (!apiKey) {
       return res.status(401).json({ 
         error: 'API key required',
-        hint: 'Include X-API-Key header or ?apiKey= query param',
+        hint: ALLOW_QUERY_API_KEY
+          ? 'Include X-API-Key header or ?apiKey= query param'
+          : 'Include X-API-Key header',
         setup: {
           onboarding: ONBOARDING_PATH,
           docs: '/README.md#quick-start',
@@ -209,7 +212,7 @@ export function requireAuth(requiredPermission = 'read') {
  * Optional auth - doesn't block but tracks usage
  */
 export function optionalAuth(req, res, next) {
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+  const apiKey = req.headers['x-api-key'] || (ALLOW_QUERY_API_KEY ? req.query.apiKey : undefined);
   if (apiKey) {
     const key = validateApiKey(apiKey);
     if (key) {
