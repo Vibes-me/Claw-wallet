@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "demo": "node demo.js",
-    "cli": "node cli.js"
+    "cli": "node cli.js",
+    "smoke:onboarding": "node tests/smoke-onboarding.js"
   },
   "keywords": [
     "ai",
