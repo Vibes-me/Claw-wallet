@@ -1,14 +1,15 @@
 {
   "name": "agent-wallet-service",
   "version": "0.1.0",
-  "description": "Stripe for AI Agent Wallets — Add wallet functionality to any AI agent in seconds",
+  "description": "Stripe for AI Agent Wallets \u2014 Add wallet functionality to any AI agent in seconds",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "demo": "node demo.js",
-    "cli": "node cli.js"
+    "cli": "node cli.js",
+    "test": "node tests/test-policy.js && node tests/test-wallet.js"
   },
   "keywords": [
     "ai",

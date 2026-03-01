@@ -8,6 +8,8 @@ import { join } from 'path';
 import { randomBytes } from 'crypto';
 
 const API_KEYS_FILE = join(process.cwd(), 'api-keys.json');
+const ONBOARDING_PATH = '/onboarding';
+const ALLOW_QUERY_API_KEY = process.env.ALLOW_QUERY_API_KEY === 'true';
 
 // Rate limiting config
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -29,7 +31,13 @@ function loadApiKeys() {
     permissions: ['read', 'write', 'admin']
   };
   writeFileSync(API_KEYS_FILE, JSON.stringify([defaultKey], null, 2));
-  console.log(`🔑 Generated admin API key: ${defaultKey.key}`);
+  const showSecret = process.env.SHOW_BOOTSTRAP_SECRET === 'true';
+  const preview = `${defaultKey.key.slice(0, 12)}...`;
+  if (showSecret) {
+    console.log(`🔑 Generated admin API key: ${defaultKey.key}`);
+  } else {
+    console.log(`🔑 Generated admin API key: ${preview} (set SHOW_BOOTSTRAP_SECRET=true to print full key)`);
+  }
   return [defaultKey];
 }
 
@@ -103,6 +111,19 @@ export function listApiKeys() {
 }
 
 /**
+ * Onboarding state helper
+ */
+export function getOnboardingState() {
+  return {
+    hasApiKeys: apiKeys.length > 0,
+    apiKeyCount: apiKeys.length,
+    firstKeyPrefix: apiKeys[0]?.key?.slice(0, 12) || null,
+    docsPath: '/README.md#quick-start',
+    onboardingPath: ONBOARDING_PATH
+  };
+}
+
+/**
  * Revoke an API key
  */
 export function revokeApiKey(keyPrefix) {
@@ -132,13 +153,24 @@ export function requireAuth(requiredPermission = 'read') {
       return next();
     }
 
-    // Get API key from header or query
-    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    // Get API key from header (query fallback is opt-in for local dev only)
+    const apiKey = req.headers['x-api-key'] || (ALLOW_QUERY_API_KEY ? req.query.apiKey : undefined);
 
     if (!apiKey) {
       return res.status(401).json({ 
         error: 'API key required',
-        hint: 'Include X-API-Key header or ?apiKey= query param'
+        hint: ALLOW_QUERY_API_KEY
+          ? 'Include X-API-Key header or ?apiKey= query param'
+          : 'Include X-API-Key header',
+        setup: {
+          onboarding: ONBOARDING_PATH,
+          docs: '/README.md#quick-start',
+          next: [
+            'GET /onboarding for setup steps and copy/paste curl commands',
+            'Create an API key with POST /api-keys using an admin key',
+            'Retry with header: X-API-Key: sk_...'
+          ]
+        }
       });
     }
 
@@ -180,7 +212,7 @@ export function requireAuth(requiredPermission = 'read') {
  * Optional auth - doesn't block but tracks usage
  */
 export function optionalAuth(req, res, next) {
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+  const apiKey = req.headers['x-api-key'] || (ALLOW_QUERY_API_KEY ? req.query.apiKey : undefined);
   if (apiKey) {
     const key = validateApiKey(apiKey);
     if (key) {
