@@ -6,11 +6,8 @@
  */
 
 import 'dotenv/config';
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
-import { fromBase64, toBase64 } from '@mysten/sui/utils';
-import { Transaction } from '@mysten/sui/transactions';
+import { Ed25519Keypair, JsonRpcProvider, RawSigner, fromB64, toB64 } from '@mysten/sui.js';
+import { randomBytes } from 'crypto';
 
 // ============================================================
 // CHAIN CONFIGURATION
