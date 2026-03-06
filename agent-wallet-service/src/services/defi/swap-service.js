@@ -16,6 +16,7 @@ import {
 import { evaluateTransferPolicy } from '../policy-engine.js';
 import { getWalletByAddress } from '../viem-wallet.js';
 import { decrypt } from '../encryption.js';
+import { emitToWallet, broadcast, WSEvents } from '../websocket.js';
 
 // ============================================================
 // CHAIN CONFIGURATION
@@ -545,6 +546,19 @@ export async function executeSwap({
   } else {
     throw new Error(`Unknown provider: ${provider}`);
   }
+  
+  // Emit WebSocket event for swap
+  emitToWallet(walletAddress, 'defi:swap', {
+    hash,
+    fromToken: fromTokenAddress,
+    toToken,
+    amountIn: amount,
+    minAmountOut,
+    chain,
+    provider,
+    status: 'pending',
+    timestamp: new Date().toISOString()
+  });
   
   return {
     success: receipt.status === 'success',

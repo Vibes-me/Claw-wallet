@@ -1,4 +1,61 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+
+// WebSocket hook for real-time updates
+function useWebSocket(url, apiKey) {
+  const [wsConnected, setWsConnected] = useState(false);
+  const [lastMessage, setLastMessage] = useState(null);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (!url || !apiKey) return;
+
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setWsConnected(true);
+      // Authenticate with API key
+      ws.send(JSON.stringify({ type: 'auth', data: { apiKey } }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        setLastMessage(message);
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+      }
+    };
+
+    ws.onclose = () => {
+      setWsConnected(false);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [url, apiKey]);
+
+  const subscribe = useCallback((walletAddress) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'subscribe', data: { walletAddress } }));
+    }
+  }, []);
+
+  const unsubscribe = useCallback((walletAddress) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'unsubscribe', data: { walletAddress } }));
+    }
+  }, []);
+
+  return { wsConnected, lastMessage, subscribe, unsubscribe };
+}
 
 function useApiKey() {
   const [apiKey, setApiKey] = useState('');
@@ -254,6 +311,10 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [connected, setConnected] = useState(false);
 
+  // WebSocket connection for real-time updates
+  const wsUrl = health ? `ws://${window.location.host}/ws` : null;
+  const { wsConnected, lastMessage, subscribe } = useWebSocket(wsUrl, apiKey);
+
   // Modal states
   const [showCreateWalletModal, setShowCreateWalletModal] = useState(false);
   const [showCreateIdentityModal, setShowCreateIdentityModal] = useState(false);
@@ -287,6 +348,65 @@ export default function App() {
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // Handle WebSocket messages for real-time updates
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    const { type, data } = lastMessage;
+
+    switch (type) {
+      case 'tx:pending':
+        addToast(`Transaction pending: ${data.hash?.slice(0, 8)}...`, 'info');
+        // Refresh history
+        if (apiKey) {
+          apiFetch('/wallet/history?limit=10', { apiKey }).then(res => {
+            if (res.transactions) setHistory(res.transactions);
+          });
+        }
+        break;
+
+      case 'tx:confirmed':
+        addToast(`Transaction confirmed: ${data.hash?.slice(0, 8)}...`, 'success');
+        // Refresh balance if we're viewing this wallet
+        if (selectedWallet?.address?.toLowerCase() === data.walletAddress?.toLowerCase()) {
+          fetchBalance(selectedWallet);
+        }
+        break;
+
+      case 'tx:failed':
+        addToast(`Transaction failed: ${data.error}`, 'error');
+        break;
+
+      case 'wallet:created':
+        addToast(`New wallet created: ${data.agentName}`, 'success');
+        setWallets(prev => [...prev, { id: data.walletId, agentName: data.agentName, address: data.address, chain: data.chain }]);
+        break;
+
+      case 'wallet:imported':
+        addToast(`Wallet imported: ${data.address?.slice(0, 8)}...`, 'success');
+        break;
+
+      case 'approval:required':
+        addToast(`Approval required: ${data.valueEth} ETH to ${data.toAddress?.slice(0, 8)}...`, 'info');
+        fetchPendingApprovals();
+        break;
+
+      case 'approval:approved':
+        addToast(`Transaction approved!`, 'success');
+        fetchPendingApprovals();
+        break;
+
+      case 'approval:rejected':
+        addToast(`Transaction rejected`, 'error');
+        fetchPendingApprovals();
+        break;
+
+      default:
+        // Ignore other message types
+        break;
+    }
+  }, [lastMessage, addToast, apiKey, selectedWallet]);
 
   useEffect(() => {
     (async () => {
@@ -561,6 +681,7 @@ export default function App() {
             <div className="connected-indicator">
               <span className="status-dot"></span>
               Connected
+              {wsConnected && <span className="ws-indicator" title="WebSocket connected">📡</span>}
             </div>
           )}
         </div>

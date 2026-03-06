@@ -1,5 +1,6 @@
 import { getDb } from '../services/db.js';
 import { randomUUID } from 'crypto';
+import { emitApprovalRequired, emitApprovalUpdate, WSEvents } from '../services/websocket.js';
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 let memoryStore = []; // In-memory fallback
@@ -30,10 +31,40 @@ export async function createPendingApproval({
       [id, tenantId, record.wallet_address, record.from_address, record.to_address,
         valueEth, valueUsd, chain, token, data, method, priority, expiresAt, JSON.stringify(metadata)]
     );
+    
+    // Emit WebSocket event for new approval request
+    emitApprovalRequired(tenantId, {
+      id,
+      walletAddress,
+      fromAddress,
+      toAddress,
+      valueEth,
+      valueUsd,
+      chain,
+      priority,
+      expiresAt,
+      createdAt: record.created_at
+    });
+    
     return result.rows[0];
   }
 
   memoryStore.push(record);
+  
+  // Emit WebSocket event for new approval request
+  emitApprovalRequired(tenantId, {
+    id,
+    walletAddress,
+    fromAddress,
+    toAddress,
+    valueEth,
+    valueUsd,
+    chain,
+    priority,
+    expiresAt,
+    createdAt: record.created_at
+  });
+  
   return record;
 }
 
@@ -119,6 +150,15 @@ export async function approvePendingApproval(id, { tenantId, approvedBy } = {}) 
        RETURNING *`,
       [approvedBy, id, tenantId]
     );
+    
+    // Emit WebSocket event for approved approval
+    if (result.rows[0]) {
+      emitApprovalUpdate(tenantId, id, 'approved', {
+        approvedBy,
+        approvedAt: result.rows[0].approved_at
+      });
+    }
+    
     return result.rows[0] || null;
   }
   const record = memoryStore.find(a => a.id === id && a.tenant_id === tenantId && a.status === 'pending');
@@ -126,6 +166,13 @@ export async function approvePendingApproval(id, { tenantId, approvedBy } = {}) 
     record.status = 'approved';
     record.approved_at = new Date().toISOString();
     record.approved_by = approvedBy;
+    
+    // Emit WebSocket event for approved approval
+    emitApprovalUpdate(tenantId, id, 'approved', {
+      approvedBy,
+      approvedAt: record.approved_at
+    });
+    
     return record;
   }
   return null;
@@ -141,6 +188,15 @@ export async function rejectPendingApproval(id, { tenantId, rejectionReason = nu
        RETURNING *`,
       [rejectionReason, id, tenantId]
     );
+    
+    // Emit WebSocket event for rejected approval
+    if (result.rows[0]) {
+      emitApprovalUpdate(tenantId, id, 'rejected', {
+        rejectionReason,
+        rejectedAt: result.rows[0].rejected_at
+      });
+    }
+    
     return result.rows[0] || null;
   }
   const record = memoryStore.find(a => a.id === id && a.tenant_id === tenantId && a.status === 'pending');
@@ -148,6 +204,13 @@ export async function rejectPendingApproval(id, { tenantId, rejectionReason = nu
     record.status = 'rejected';
     record.rejected_at = new Date().toISOString();
     record.rejection_reason = rejectionReason;
+    
+    // Emit WebSocket event for rejected approval
+    emitApprovalUpdate(tenantId, id, 'rejected', {
+      rejectionReason,
+      rejectedAt: record.rejected_at
+    });
+    
     return record;
   }
   return null;

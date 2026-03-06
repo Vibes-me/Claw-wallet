@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claw-wallet"
-version = "0.1.0"
+version = "0.2.0"
 description = "Stripe for AI Agent Wallets - Python SDK"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Mr. Claw", email = "mrclaw@example.com"}
 ]
-keywords = ["wallet", "crypto", "ethereum", "ai", "agent", "blockchain"]
+keywords = ["wallet", "crypto", "ethereum", "ai", "agent", "blockchain", "websocket"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -35,6 +35,17 @@ dev = [
     "black>=23.0.0",
     "mypy>=1.0.0",
 ]
+websocket = [
+    "websocket-client>=1.6.0",
+]
+all = [
+    "claw-wallet[dev,websocket]",
+]
+
+[project.urls]
+Homepage = "https://github.com/Vibes-me/Claw-wallet"
+Documentation = "https://github.com/Vibes-me/Claw-wallet#readme"
+Repository = "https://github.com/Vibes-me/Claw-wallet.git"
 
 [tool.setuptools.packages.find]
 where = ["."]

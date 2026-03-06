@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { createServer } from 'http';
 import walletRoutes from './routes/wallet.js';
 import identityRoutes from './routes/identity.js';
 import ensRoutes from './routes/ens.js';
@@ -18,11 +19,13 @@ import { getPolicyStats } from './services/policy-engine.js';
 import { applyMigrations } from './services/migrations.js';
 import { getAllSupportedChains, getChainAvailability } from './services/chain-manager.js';
 import { logger, requestLogger, errorLogger } from './services/logger.js';
+import { initWebSocket, getWsStats, closeWebSocket, WSEvents } from './services/websocket.js';
 import pkg from '../package.json' with { type: 'json' };
 import { WalletMCPServer } from './mcp-server.js';
 
 // Initialize MCP Server on startup
 let mcpServer = null;
+let wss = null;
 async function initMCPServer() {
   if (process.env.ENABLE_MCP !== 'false') {
     try {
@@ -65,7 +68,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     service: 'agent-wallet-service',
     version: pkg.version,
-    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine', 'multisig-wallets', 'defi-integrations', 'webhooks', 'additional-chains'],
+    features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine', 'multisig-wallets', 'defi-integrations', 'webhooks', 'additional-chains', 'websocket'],
     chains: {
       testnets,
       mainnets,
@@ -317,6 +320,23 @@ app.get('/mcp', (req, res) => {
   });
 });
 
+// WebSocket endpoint (info and stats)
+app.get('/ws', (req, res) => {
+  res.json({
+    status: wss ? 'running' : 'disabled',
+    protocol: 'WebSocket over HTTP',
+    endpoint: '/ws',
+    events: Object.values(WSEvents),
+    stats: getWsStats(),
+    usage: {
+      connect: 'Connect to ws://localhost:PORT/ws',
+      authenticate: 'Send {"type": "auth", "data": {"apiKey": "sk_..."}}',
+      subscribe: 'Send {"type": "subscribe", "data": {"walletAddress": "0x..."}}',
+      ping: 'Send {"type": "ping"} to check connection'
+    }
+  });
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   errorLogger(err, req, res, () => { });
@@ -327,11 +347,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Graceful shutdown handling
-let server;
+// Create HTTP server for WebSocket support
+const server = createServer(app);
 
-server = app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   const baseUrl = `http://localhost:${PORT}`;
+
+  // Initialize WebSocket Server
+  wss = initWebSocket(server, app);
 
   // Initialize MCP Server
   await initMCPServer();
@@ -342,7 +365,8 @@ server = app.listen(PORT, async () => {
   console.log(`   Health: ${baseUrl}/health`);
   console.log(`   Onboarding: ${baseUrl}/onboarding`);
   console.log(`   MCP: ${baseUrl}/mcp`);
-  console.log(`   Features: multi-chain, erc-8004, api-keys, mcp`);
+  console.log(`   WebSocket: ws://localhost:${PORT}/ws`);
+  console.log(`   Features: multi-chain, erc-8004, api-keys, mcp, websocket`);
 });
 
 const gracefulShutdown = async (signal) => {
@@ -384,6 +408,14 @@ const gracefulShutdown = async (signal) => {
         }
       } catch (err) {
         // Redis may not be configured
+      }
+
+      // Close WebSocket server
+      try {
+        await closeWebSocket();
+        console.log('📝 WebSocket server closed');
+      } catch (err) {
+        // WebSocket may not be initialized
       }
 
       console.log('✅ Graceful shutdown complete');

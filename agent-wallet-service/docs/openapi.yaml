@@ -1,0 +1,947 @@
+openapi: 3.0.3
+info:
+  title: Claw Wallet API
+  description: |
+    Stripe for AI Agent Wallets — Add wallet functionality to any AI agent in seconds.
+    
+    ## Authentication
+    All API requests require an API key in the `X-API-Key` header.
+    
+    ## Rate Limiting
+    Rate limits are tier-based:
+    - **Free**: 100 points/min (BYO RPC required)
+    - **Pro**: 300 points/min (managed RPC)
+    - **Enterprise**: 1000 points/min (managed RPC)
+    
+    ## Tiers
+    Set tier via permissions: `["read", "write", "tier:pro"]`
+  version: 0.1.0
+  contact:
+    name: Mr. Claw
+    url: https://github.com/Vibes-me/Claw-wallet
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.clawwallet.io
+    description: Production (coming soon)
+
+tags:
+  - name: Health
+    description: Service health and metadata
+  - name: API Keys
+    description: API key management (admin only)
+  - name: Wallets
+    description: Wallet CRUD and transactions
+  - name: Identity
+    description: ERC-8004 agent identities
+  - name: Policy
+    description: Spending policy management
+  - name: ENS
+    description: ENS name registration
+  - name: DeFi
+    description: DeFi integrations
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  # ===========================================
+  # Health & Metadata
+  # ===========================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /:
+    get:
+      tags: [Health]
+      summary: Service metadata
+      security: []
+      responses:
+        '200':
+          description: Service metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceMetadata'
+
+  /onboarding:
+    get:
+      tags: [Health]
+      summary: Onboarding instructions
+      security: []
+      responses:
+        '200':
+          description: Onboarding state and examples
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingResponse'
+
+  # ===========================================
+  # API Keys
+  # ===========================================
+  /api-keys:
+    post:
+      tags: [API Keys]
+      summary: Create API key
+      description: Requires admin permission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '200':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    get:
+      tags: [API Keys]
+      summary: List API keys
+      description: Requires admin permission
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
+
+  /api-keys/{prefix}:
+    delete:
+      tags: [API Keys]
+      summary: Revoke API key
+      description: Requires admin permission
+      parameters:
+        - name: prefix
+          in: path
+          required: true
+          schema:
+            type: string
+          description: API key prefix (e.g., "sk_live_abc")
+      responses:
+        '200':
+          description: API key revoked
+        '404':
+          description: API key not found
+
+  # ===========================================
+  # Wallets
+  # ===========================================
+  /wallet/create:
+    post:
+      tags: [Wallets]
+      summary: Create new wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '200':
+          description: Wallet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+
+  /wallet/import:
+    post:
+      tags: [Wallets]
+      summary: Import wallet from private key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportWalletRequest'
+      responses:
+        '200':
+          description: Wallet imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+
+  /wallet/list:
+    get:
+      tags: [Wallets]
+      summary: List all wallets
+      responses:
+        '200':
+          description: List of wallets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletListResponse'
+
+  /wallet/chains:
+    get:
+      tags: [Wallets]
+      summary: List supported chains
+      security: []
+      responses:
+        '200':
+          description: List of supported chains
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainsResponse'
+
+  /wallet/fees:
+    get:
+      tags: [Wallets]
+      summary: Get fee configuration
+      security: []
+      responses:
+        '200':
+          description: Fee configuration
+
+  /wallet/history:
+    get:
+      tags: [Wallets]
+      summary: Get transaction history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryResponse'
+
+  /wallet/estimate-gas:
+    post:
+      tags: [Wallets]
+      summary: Estimate gas for transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstimateGasRequest'
+      responses:
+        '200':
+          description: Gas estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GasEstimateResponse'
+
+  /wallet/{address}:
+    get:
+      tags: [Wallets]
+      summary: Get wallet details
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^0x[a-fA-F0-9]{40}$'
+      responses:
+        '200':
+          description: Wallet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDetails'
+        '404':
+          description: Wallet not found
+
+  /wallet/{address}/balance:
+    get:
+      tags: [Wallets]
+      summary: Get wallet balance
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: chain
+          in: query
+          schema:
+            type: string
+        - name: rpcUrl
+          in: query
+          description: BYO RPC URL (required for free tier)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Wallet balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+
+  /wallet/{address}/send:
+    post:
+      tags: [Wallets]
+      summary: Send transaction
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendTransactionRequest'
+      responses:
+        '200':
+          description: Transaction sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '402':
+          description: Policy blocked transaction
+
+  /wallet/{address}/sweep:
+    post:
+      tags: [Wallets]
+      summary: Sweep all funds
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SweepRequest'
+      responses:
+        '200':
+          description: Sweep completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SweepResponse'
+
+  # ===========================================
+  # Policy
+  # ===========================================
+  /wallet/policy/{address}:
+    get:
+      tags: [Policy]
+      summary: Get wallet policy
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Wallet policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+
+    put:
+      tags: [Policy]
+      summary: Set wallet policy
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPolicyRequest'
+      responses:
+        '200':
+          description: Policy updated
+
+  /wallet/policy/{address}/evaluate:
+    post:
+      tags: [Policy]
+      summary: Evaluate policy without sending
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePolicyRequest'
+      responses:
+        '200':
+          description: Policy evaluation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyEvaluationResponse'
+
+  # ===========================================
+  # Identity (ERC-8004)
+  # ===========================================
+  /identity/create:
+    post:
+      tags: [Identity]
+      summary: Create agent identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIdentityRequest'
+      responses:
+        '200':
+          description: Identity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+
+  /identity/list:
+    get:
+      tags: [Identity]
+      summary: List all identities
+      responses:
+        '200':
+          description: List of identities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityListResponse'
+
+  /identity/{agentId}:
+    get:
+      tags: [Identity]
+      summary: Get identity details
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Identity details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityDetails'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    # Health
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: agent-wallet-service
+        version:
+          type: string
+          example: 0.1.0
+        features:
+          type: array
+          items:
+            type: string
+        chains:
+          type: object
+          properties:
+            testnets:
+              type: array
+              items:
+                type: string
+            mainnets:
+              type: array
+              items:
+                type: string
+            count:
+              type: integer
+
+    ServiceMetadata:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        docs:
+          type: string
+        quickstart:
+          type: array
+          items:
+            type: string
+
+    OnboardingResponse:
+      type: object
+      properties:
+        hasApiKeys:
+          type: boolean
+        apiKeyCount:
+          type: integer
+        keyPreview:
+          type: string
+        nextSteps:
+          type: array
+          items:
+            type: string
+
+    # API Keys
+    CreateApiKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: my-bot
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["read", "write", "tier:pro"]
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        key:
+          type: object
+          properties:
+            key:
+              type: string
+            name:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+
+    ApiKeyListResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              name:
+                type: string
+              permissions:
+                type: array
+                items:
+                  type: string
+
+    # Wallets
+    CreateWalletRequest:
+      type: object
+      required: [agentName]
+      properties:
+        agentName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        chain:
+          type: string
+          default: base-sepolia
+
+    ImportWalletRequest:
+      type: object
+      required: [privateKey]
+      properties:
+        privateKey:
+          type: string
+          pattern: '^(0x)?[a-fA-F0-9]{64}$'
+        agentName:
+          type: string
+        chain:
+          type: string
+          default: base-sepolia
+
+    WalletResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        wallet:
+          type: object
+          properties:
+            id:
+              type: string
+            address:
+              type: string
+            chain:
+              type: string
+
+    WalletListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        wallets:
+          type: array
+          items:
+            $ref: '#/components/schemas/WalletDetails'
+
+    WalletDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        agentName:
+          type: string
+        address:
+          type: string
+        chain:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ChainsResponse:
+      type: object
+      properties:
+        default:
+          type: string
+        count:
+          type: integer
+        chains:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              testnet:
+                type: boolean
+
+    BalanceResponse:
+      type: object
+      properties:
+        address:
+          type: string
+        balance:
+          type: object
+          properties:
+            chain:
+              type: string
+            eth:
+              type: string
+            wei:
+              type: string
+            rpc:
+              type: string
+
+    SendTransactionRequest:
+      type: object
+      required: [to]
+      properties:
+        to:
+          type: string
+          pattern: '^0x[a-fA-F0-9]{40}$'
+        value:
+          type: string
+          default: "0"
+        data:
+          type: string
+          default: "0x"
+        chain:
+          type: string
+        rpcUrl:
+          type: string
+
+    TransactionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transaction:
+          type: object
+          properties:
+            hash:
+              type: string
+            from:
+              type: string
+            to:
+              type: string
+            value:
+              type: string
+            chain:
+              type: string
+            explorer:
+              type: string
+
+    EstimateGasRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        value:
+          type: string
+        data:
+          type: string
+        chain:
+          type: string
+        rpcUrl:
+          type: string
+
+    GasEstimateResponse:
+      type: object
+      properties:
+        chain:
+          type: string
+        gasUnits:
+          type: string
+        gasPrice:
+          type: string
+        estimatedCost:
+          type: string
+
+    SweepRequest:
+      type: object
+      required: [to]
+      properties:
+        to:
+          type: string
+        chain:
+          type: string
+        rpcUrl:
+          type: string
+
+    SweepResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        sweep:
+          type: object
+          properties:
+            hash:
+              type: string
+            amountSent:
+              type: string
+            gasCost:
+              type: string
+            chain:
+              type: string
+
+    TransactionHistoryResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              hash:
+                type: string
+              from:
+                type: string
+              to:
+                type: string
+              value:
+                type: string
+              chain:
+                type: string
+
+    # Policy
+    SetPolicyRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        preset:
+          type: string
+        perTxLimitEth:
+          type: string
+        dailyLimitEth:
+          type: string
+        allowedRecipients:
+          type: array
+          items:
+            type: string
+        blockedRecipients:
+          type: array
+          items:
+            type: string
+
+    PolicyResponse:
+      type: object
+      properties:
+        address:
+          type: string
+        policy:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            perTxLimitEth:
+              type: string
+            dailyLimitEth:
+              type: string
+            allowedRecipients:
+              type: array
+              items:
+                type: string
+            blockedRecipients:
+              type: array
+              items:
+                type: string
+
+    EvaluatePolicyRequest:
+      type: object
+      properties:
+        to:
+          type: string
+        value:
+          type: string
+          default: "0"
+        chain:
+          type: string
+        dryRun:
+          type: boolean
+          default: true
+
+    PolicyEvaluationResponse:
+      type: object
+      properties:
+        address:
+          type: string
+        evaluation:
+          type: object
+          properties:
+            allowed:
+              type: boolean
+            reason:
+              type: string
+
+    # Identity
+    CreateIdentityRequest:
+      type: object
+      required: [walletAddress, agentName]
+      properties:
+        walletAddress:
+          type: string
+        agentName:
+          type: string
+        description:
+          type: string
+        agentType:
+          type: string
+          enum: [assistant, autonomous, hybrid]
+        capabilities:
+          type: array
+          items:
+            type: string
+
+    IdentityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        identity:
+          type: object
+          properties:
+            id:
+              type: string
+            walletAddress:
+              type: string
+            agentName:
+              type: string
+            agentType:
+              type: string
+
+    IdentityListResponse:
+      type: object
+      properties:
+        identities:
+          type: array
+          items:
+            type: object
+
+    IdentityDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        walletAddress:
+          type: string
+        agentName:
+          type: string
+        agentType:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+
+  responses:
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              error_code:
+                type: string

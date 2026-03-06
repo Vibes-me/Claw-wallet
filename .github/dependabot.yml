@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # Backend dependencies
+  - package-ecosystem: "npm"
+    directory: "/agent-wallet-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "Vibes-me"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "deps(back):"
+    
+  # Dashboard dependencies
+  - package-ecosystem: "npm"
+    directory: "/agent-wallet-service-dashboard"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Vibes-me"
+    labels:
+      - "dependencies"
+      - "dashboard"
+    commit-message:
+      prefix: "deps(dash):"
+    
+  # Python SDK dependencies
+  - package-ecosystem: "pip"
+    directory: "/agent-wallet-service-python"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Vibes-me"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps(py):"
+    
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Vibes-me"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci:"

@@ -37,21 +37,55 @@ class WalletClient:
         >>> print(f"Created wallet: {wallet.address}")
     """
     
-    # Supported chains
+    # Supported chains - synchronized with backend chain-manager.js
     SUPPORTED_CHAINS = [
+        # EVM Mainnets
         "ethereum",
         "base",
-        "base-sepolia",
         "polygon",
-        "polygon-zkevm",
-        "arbitrum",
-        "arbitrum-sepolia",
         "optimism",
-        "solana",
-        "aptos",
-        "sui",
-        "starknet",
+        "arbitrum",
+        "polygon-zkevm",
         "zksync",
+        # EVM Testnets
+        "ethereum-sepolia",
+        "base-sepolia",
+        "polygon-mumbai",
+        "optimism-sepolia",
+        "arbitrum-sepolia",
+        "polygon-zkevm-testnet",
+        "zksync-sepolia",
+        # Solana
+        "solana",
+        "solana-devnet",
+        "solana-testnet",
+        # Aptos (Move)
+        "aptos",
+        "aptos-testnet",
+        "aptos-devnet",
+        # Sui (Move)
+        "sui",
+        "sui-testnet",
+        "sui-devnet",
+        # Starknet (Cairo)
+        "starknet",
+        "starknet-testnet",
+    ]
+    
+    # Chain categories for easy filtering
+    EVM_CHAINS = [
+        "ethereum", "base", "polygon", "optimism", "arbitrum",
+        "polygon-zkevm", "zksync",
+        "ethereum-sepolia", "base-sepolia", "polygon-mumbai",
+        "optimism-sepolia", "arbitrum-sepolia",
+        "polygon-zkevm-testnet", "zksync-sepolia"
+    ]
+    
+    NON_EVM_CHAINS = [
+        "solana", "solana-devnet", "solana-testnet",
+        "aptos", "aptos-testnet", "aptos-devnet",
+        "sui", "sui-testnet", "sui-devnet",
+        "starknet", "starknet-testnet"
     ]
     
     def __init__(

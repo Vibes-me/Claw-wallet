@@ -25,6 +25,7 @@ import {
   getAllWalletsDb,
   upsertWalletDb
 } from '../repositories/wallet-repository.js';
+import { emitTxPending, emitTxConfirmed, emitTxFailed, emitBalanceUpdate, WSEvents, broadcast } from './websocket.js';
 
 // ============================================================
 // MULTI-CHAIN CONFIG
@@ -267,6 +268,15 @@ export async function createWallet({ agentName, chain = 'base-sepolia', tenantId
 
     console.log(`✅ Created wallet for ${agentName}: ${account.address}`);
 
+    // Emit WebSocket event for wallet creation
+    broadcast(WSEvents.WALLET_CREATED, {
+      walletId,
+      agentName,
+      address: account.address,
+      chain,
+      timestamp: new Date().toISOString()
+    });
+
     return {
       id: walletId,
       address: account.address,
@@ -387,6 +397,16 @@ export async function signTransaction({
 
     console.log(`✅ Transaction sent on ${chainName}: ${hash}`);
 
+    // Emit WebSocket event for pending transaction
+    emitTxPending(from, {
+      hash,
+      to,
+      value,
+      chain: chainName,
+      status: 'pending',
+      timestamp: new Date().toISOString()
+    });
+
     // Log transaction
     const txRecord = {
       hash,
@@ -419,6 +439,16 @@ export async function signTransaction({
     };
   } catch (error) {
     console.error('Failed to send transaction:', error);
+    
+    // Emit WebSocket event for failed transaction
+    emitTxFailed(from, {
+      to,
+      value,
+      chain: chainName,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
     throw error;
   } finally {
     // Zero out the decrypted key from memory after use
@@ -527,6 +557,15 @@ export async function importWallet({ privateKey, agentName, chain = DEFAULT_CHAI
     }
 
     console.log(`✅ Imported wallet: ${account.address}`);
+
+    // Emit WebSocket event for wallet import
+    broadcast(WSEvents.WALLET_IMPORTED, {
+      walletId,
+      agentName: agentName || 'Imported',
+      address: account.address,
+      chain,
+      timestamp: new Date().toISOString()
+    });
 
     return {
       id: walletId,
