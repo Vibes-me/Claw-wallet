@@ -36,6 +36,7 @@ import {
   evaluateTransferPolicy
 } from './services/policy-engine.js';
 import { logger } from './services/logger.js';
+import { SERVICE_VERSION } from './utils/version.js';
 
 /**
  * Wallet MCP Server
@@ -46,7 +47,7 @@ class WalletMCPServer {
     this.server = new Server(
       {
         name: 'agent-wallet-service',
-        version: '1.0.0',
+        version: SERVICE_VERSION,
       },
       {
         capabilities: {

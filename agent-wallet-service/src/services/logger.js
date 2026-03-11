@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { SERVICE_VERSION } from '../utils/version.js';
 
 /**
  * Structured Logging Service
@@ -28,7 +29,7 @@ export const logger = pino({
   timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
   base: {
     service: 'agent-wallet-service',
-    version: process.env.npm_package_version || '0.1.0'
+    version: SERVICE_VERSION
   }
 });
 

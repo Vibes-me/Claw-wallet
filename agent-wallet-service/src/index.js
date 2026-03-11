@@ -20,7 +20,7 @@ import { applyMigrations } from './services/migrations.js';
 import { getAllSupportedChains, getChainAvailability } from './services/chain-manager.js';
 import { logger, requestLogger, errorLogger } from './services/logger.js';
 import { initWebSocket, getWsStats, closeWebSocket, WSEvents } from './services/websocket.js';
-import pkg from '../package.json' with { type: 'json' };
+import { SERVICE_VERSION } from './utils/version.js';
 import { WalletMCPServer } from './mcp-server.js';
 
 // Initialize MCP Server on startup
@@ -67,7 +67,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'agent-wallet-service',
-    version: pkg.version,
+    version: SERVICE_VERSION,
     features: ['multi-chain', 'erc-8004', 'api-keys', 'ens', 'policy-engine', 'multisig-wallets', 'defi-integrations', 'webhooks', 'additional-chains', 'websocket'],
     chains: {
       testnets,
@@ -85,7 +85,7 @@ app.get('/', (req, res) => {
 
   const payload = {
     name: 'Agent Wallet Service',
-    version: pkg.version,
+    version: SERVICE_VERSION,
     docs: 'https://github.com/mrclaw/agent-wallet-service',
     quickstart: [
       '1) Start the service: npm start',
@@ -131,7 +131,7 @@ app.get('/', (req, res) => {
   </head>
   <body>
     <main class="card">
-      <h1><span class="logo">🦞</span> Agent Wallet Service <span class="badge">v${pkg.version} · multi-chain</span></h1>
+      <h1><span class="logo">🦞</span> Agent Wallet Service <span class="badge">v${SERVICE_VERSION} · multi-chain</span></h1>
       <p>Give your human and AI agents safe wallets in seconds — no blockchain SDKs, no key management, no contract deployments.</p>
 
       <h2>Quickstart (local)</h2>
@@ -187,6 +187,7 @@ app.get('/dashboard', (req, res) => {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   res.json({
     service: 'agent-wallet-service',
+    version: SERVICE_VERSION,
     ui: 'minimal-dashboard',
     links: {
       health: `${baseUrl}/health`,
@@ -205,6 +206,7 @@ app.get('/onboarding', async (req, res) => {
 
   res.json({
     service: 'agent-wallet-service',
+    version: SERVICE_VERSION,
     rpcPlans: {
       free: 'BYO RPC required on chain-call endpoints',
       pro: 'Managed RPC included',
@@ -359,7 +361,7 @@ server.listen(PORT, async () => {
   // Initialize MCP Server
   await initMCPServer();
 
-  logger.info({ port: PORT, baseUrl, version: pkg.version }, 'Agent Wallet Service started');
+  logger.info({ port: PORT, baseUrl, version: SERVICE_VERSION }, 'Agent Wallet Service started');
   console.log(`🦞 Agent Wallet Service running on port ${PORT}`);
   console.log(`   URL: ${baseUrl}`);
   console.log(`   Health: ${baseUrl}/health`);
