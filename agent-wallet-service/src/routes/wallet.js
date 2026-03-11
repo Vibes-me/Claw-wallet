@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendError } from '../utils/error-envelope.js';
+import { isAddress } from 'viem';
 import { requireAuth } from '../middleware/auth.js';
 import {
   validate,
@@ -492,6 +492,10 @@ router.get('/:address', requireAuth('read'), async (req, res) => {
   try {
     const { address } = req.params;
     const tenantId = req.tenant?.id;
+
+    if (!isAddress(address, { strict: false })) {
+      return res.status(404).json({ error: `Wallet not found: ${address}`, error_code: 'WALLET_NOT_FOUND' });
+    }
 
     const wallet = await getWalletByAddress(address, { tenantId });
 
