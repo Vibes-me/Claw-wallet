@@ -291,6 +291,7 @@ GET  /ens/:name                          Resolve ENS details
 
 ## Rate limit tuning
 
+- Set `RATE_LIMIT_STRATEGY` (`memory` for local dev, `redis` for distributed/prod; default: `memory`).
 - Set `RATE_LIMIT_WINDOW_MS` (default: `60000`).
 - Set per-tier limits:
   - `RATE_LIMIT_MAX_POINTS_FREE` (default: `100`)
@@ -303,6 +304,7 @@ GET  /ens/:name                          Resolve ENS details
 - Assign tier on key creation via permission tag, e.g. `["read","write","tier:pro"]`.
 - Free-tier (`tier:free`) keys must provide BYO RPC URL (`X-RPC-URL`, `rpcUrl` query/body).
 - Restrict BYO hosts via `BYO_RPC_ALLOWED_HOSTS` (default: `*.g.alchemy.com,*.alchemy.com`).
+- When using `RATE_LIMIT_STRATEGY=redis`, set `REDIS_URL` and ensure Redis is reachable from all instances.
 
 ## Architecture
 
@@ -318,8 +320,7 @@ src/
 │   ├── fee-collector.js        Fee calculations
 │   └── tx-history.js           Transaction logging
 └── middleware/
-    ├── auth.js                 API key auth + weighted rate limiting
-    └── rateLimit.js            Legacy simple limiter (unused)
+    └── auth.js                 Canonical API key auth + weighted rate limiting
 ```
 
 ## Live Transaction

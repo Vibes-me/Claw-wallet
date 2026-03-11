@@ -103,6 +103,10 @@ async function main() {
     await runNodeScript('tests/test-auth.js', testEnv);
     console.log('');
 
+    console.log('📋 Running rate-limit tests...');
+    await runNodeScript('tests/test-rate-limit.js', testEnv);
+    console.log('');
+
     console.log('📋 Running HITL tests...');
     await runNodeScript('tests/test-hitl.js', testEnv);
     console.log('');

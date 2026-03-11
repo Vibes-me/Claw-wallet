@@ -49,7 +49,7 @@
 |----|------|-------|----------|
 | L-01 | Multiple files | Console.log statements in production | LOW |
 | L-02 | `src/services/logger.js` | No structured logging correlation | LOW |
-| L-03 | `src/middleware/rateLimit.js` | In-memory rate limiting not distributed | LOW |
+| L-03 | `src/middleware/auth.js` | Use `RATE_LIMIT_STRATEGY=redis` + `REDIS_URL` for distributed rate limiting | LOW |
 | L-04 | `src/routes/wallet.js:60-64` | AgentName sanitization removes valid characters | LOW |
 | L-05 | Package dependencies | Outdated packages may have CVEs | LOW |
 

@@ -22,6 +22,7 @@
     "test:policy": "node tests/test-policy.js",
     "test:wallet": "node tests/test-wallet.js",
     "test:auth": "node tests/test-auth.js",
+    "test:rate-limit": "node tests/test-rate-limit.js",
     "test:hitl": "node tests/test-hitl.js",
     "prepack": "npm test"
   },

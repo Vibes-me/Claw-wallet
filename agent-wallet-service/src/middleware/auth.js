@@ -62,11 +62,15 @@ const EXPENSIVE_ROUTE_RULES = [
 // In-memory rate limit store (resets on restart)
 const rateLimitStore = new Map();
 
-const USE_REDIS_RATE_LIMIT = Boolean(process.env.REDIS_URL);
+const RATE_LIMIT_STRATEGY = (process.env.RATE_LIMIT_STRATEGY || 'memory').toLowerCase();
+const USE_REDIS_RATE_LIMIT = RATE_LIMIT_STRATEGY === 'redis';
 let redisClient = null;
 if (USE_REDIS_RATE_LIMIT) {
+  if (!process.env.REDIS_URL) {
+    console.warn('RATE_LIMIT_STRATEGY=redis but REDIS_URL is not set. Falling back to in-memory rate limiting.');
+  }
   try {
-    redisClient = getRedis();
+    redisClient = process.env.REDIS_URL ? getRedis() : null;
   } catch (err) {
     console.warn('Redis not configured correctly, falling back to in-memory rate limiting:', err.message);
     redisClient = null;
@@ -503,6 +507,7 @@ function setRateLimitHeaders(res, rateLimit) {
   res.set('X-RateLimit-Remaining', remaining);
   res.set('X-RateLimit-Reset', String(rateLimit.resetAt));
   res.set('X-RateLimit-Cost', String(rateLimit.cost));
+  res.set('X-RateLimit-Strategy', redisClient ? 'redis' : 'memory');
 
   return resetInSeconds;
 }
@@ -598,8 +603,10 @@ export function requireAuth(requiredPermission = 'read') {
         limit,
         cost,
         remaining: rateLimit.remaining,
+        reset: retryAfterSeconds,
         retryAfter: `${retryAfterSeconds} seconds`,
-        resetAt: new Date(rateLimit.resetAt).toISOString()
+        resetAt: new Date(rateLimit.resetAt).toISOString(),
+        strategy: redisClient ? 'redis' : 'memory'
       });
     }
 
