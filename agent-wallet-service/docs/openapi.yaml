@@ -20,8 +20,8 @@ info:
     name: Mr. Claw
     url: https://github.com/Vibes-me/Claw-wallet
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
 
 servers:
   - url: http://localhost:3000
