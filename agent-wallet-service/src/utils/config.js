@@ -70,6 +70,12 @@ const CONFIG_SCHEMA = {
   },
   
   // Rate Limiting
+  RATE_LIMIT_STRATEGY: {
+    type: 'enum',
+    values: ['memory', 'redis'],
+    default: 'memory',
+    description: 'Rate limit backend strategy (memory for local, redis for distributed deployments)'
+  },
   RATE_LIMIT_WINDOW_MS: {
     type: 'number',
     default: 60000,

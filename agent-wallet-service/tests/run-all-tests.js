@@ -104,8 +104,8 @@ async function main() {
     await runNodeScript('tests/test-auth.js', testEnv);
     console.log('');
 
-    console.log('📋 Running error contract tests...');
-    await runNodeScript('tests/test-error-contract.js', testEnv);
+    console.log('📋 Running rate-limit tests...');
+    await runNodeScript('tests/test-rate-limit.js', testEnv);
     console.log('');
 
     console.log('📋 Running HITL tests...');
