@@ -158,10 +158,14 @@ Example: `feat(wallet): add support for ERC-20 token transfers`
 
 ## 🌿 Branch Naming
 
-- `feature/description` - New features
-- `fix/description` - Bug fixes
-- `docs/description` - Documentation
-- `refactor/description` - Refactoring
+Use `<type>/<stream-description>` in lowercase kebab-case.
+
+- `feat/security-auth-hardening`
+- `fix/wallet-route-regression`
+- `chore/release-gates-ci-tuning`
+- `docs/metadata-release-notes`
+
+Allowed branch types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`.
 
 ## 📋 Pull Request Checklist
 
@@ -170,7 +174,20 @@ Example: `feat(wallet): add support for ERC-20 token transfers`
 - [ ] New code has test coverage
 - [ ] Documentation updated if needed
 - [ ] Commit messages follow conventions
-- [ ] PR description explains the change
+- [ ] PR description includes required quality gates:
+  - [ ] Risk level
+  - [ ] Test evidence
+  - [ ] Rollback plan
+  - [ ] Migration impact
+
+See `docs/ENGINEERING_PROGRAM_MANAGEMENT.md` for merge order, SLA cadence, and board workflow expectations.
+
+## ⏱️ Delivery SLA
+
+- First PR for a workstream must be opened within **24 hours** of starting work.
+- Review turnaround target is **4 hours** during working hours.
+
+If blocked, mark the item as blocked and post an unblock plan.
 
 ## 🔐 Security
 
