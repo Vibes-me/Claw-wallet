@@ -89,6 +89,15 @@ async function testGetWalletByAddress(address) {
   assert(body.address?.toLowerCase() === address.toLowerCase(), `Expected matching wallet address in response: ${JSON.stringify(body)}`);
 }
 
+async function testGetWalletByAddressLowercase(address) {
+  console.log('\n🔡 Testing wallet lookup accepts non-checksummed lowercase address...');
+  const lowercaseAddress = address.toLowerCase();
+  const { response, body } = await request(`/wallet/${lowercaseAddress}`);
+
+  assert(response.status === 200, `Expected /wallet/:address lowercase lookup to return 200, got ${response.status}: ${JSON.stringify(body)}`);
+  assert(body.address?.toLowerCase() === lowercaseAddress, `Expected matching wallet address for lowercase lookup: ${JSON.stringify(body)}`);
+}
+
 async function testGetWalletByAddressNotFound() {
   console.log('\n🚫 Testing wallet lookup returns 404 for unknown address...');
   const missing = '0x0000000000000000000000000000000000000001';
@@ -180,6 +189,7 @@ async function runTests() {
 
   const address = await testCreateWallet();
   await testGetWalletByAddress(address);
+  await testGetWalletByAddressLowercase(address);
   await testGetWalletByAddressNotFound();
   await testGetWalletByAddressInvalidFormat();
   await testGetBalance(address);
