@@ -3,39 +3,17 @@
  * With weighted, tier-aware rate limiting.
  */
 
-import { createHmac, randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { loadApiKeysRaw, saveApiKeys } from '../repositories/api-key-repository.js';
 import { getRedis } from '../services/redis.js';
 import { getDb } from '../services/db.js';
+import { hashApiKey } from '../utils/api-key-hash.js';
 const ONBOARDING_PATH = '/onboarding';
 
 const USE_DB_AUTH = process.env.AUTH_BACKEND === 'db' || process.env.STORAGE_BACKEND === 'db';
 const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || 'tenant_default';
 const DEFAULT_TENANT_NAME = process.env.DEFAULT_TENANT_NAME || 'Default tenant';
 const ALLOW_QUERY_API_KEY_FALLBACK = process.env.ALLOW_QUERY_API_KEY_FALLBACK === 'true' && process.env.NODE_ENV !== 'production';
-
-// Cache for development secret (generated once per process startup)
-let devHashSecret = null;
-
-function getApiKeyHashSecret() {
-  const secret = process.env.API_KEY_HASH_SECRET;
-  if (secret) return secret;
-  
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: API_KEY_HASH_SECRET is required in production for DB-backed API keys.');
-  }
-  
-  // Use random secret per startup for development (not hardcoded)
-  if (!devHashSecret) {
-    devHashSecret = randomBytes(32).toString('hex');
-    console.warn('⚠️  Using randomly generated dev API key hash secret. Set API_KEY_HASH_SECRET for consistent hashing.');
-  }
-  return devHashSecret;
-}
-
-function hashApiKey(rawKey) {
-  return createHmac('sha256', getApiKeyHashSecret()).update(String(rawKey)).digest('hex');
-}
 
 function getPositiveIntEnv(name, fallback) {
   const value = Number.parseInt(process.env[name] || '', 10);

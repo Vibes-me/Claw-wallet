@@ -9,16 +9,12 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { getDb } from '../services/db.js';
-import { createHash } from 'crypto';
+import { hashApiKey } from '../utils/api-key-hash.js';
 
 export const API_KEYS_FILE = join(process.cwd(), 'api-keys.json');
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 
 let cachedKeys = null;
-
-function hashApiKey(rawKey) {
-  return createHash('sha256').update(String(rawKey)).digest('hex');
-}
 
 function normalizeKeyRecord(record) {
   if (!record || typeof record !== 'object') return null;
