@@ -191,7 +191,7 @@ If blocked, mark the item as blocked and post an unblock plan.
 
 ## 🔐 Security
 
-If you discover a security vulnerability, please **DO NOT** open a public issue. Instead, email security concerns to the maintainers privately.
+If you discover a security vulnerability, please **DO NOT** open a public issue. Follow the coordinated disclosure process in [SECURITY.md](SECURITY.md), including private reporting to **security@clawwallet.io**.
 
 ### Security Best Practices
 
@@ -199,6 +199,13 @@ If you discover a security vulnerability, please **DO NOT** open a public issue.
 - Use environment variables for sensitive configuration
 - Validate all user inputs
 - Follow the principle of least privilege
+
+
+## 📄 License & Open-Core Boundaries
+
+- This repository is licensed under **Apache License 2.0** (see `LICENSE`).
+- By contributing, you agree your contributions are licensed under the same terms.
+- Product boundary expectations are documented in `OPEN_CORE_STRATEGY.md` and governance details in `GOVERNANCE.md`.
 
 ## 📚 Resources
 

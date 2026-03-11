@@ -342,6 +342,9 @@ npm run test:hitl
 
 ## 🛡️ Security Considerations
 
+For coordinated vulnerability disclosure, see [SECURITY.md](SECURITY.md).
+
+
 1. **Private Keys** — Encrypted at rest using AES-256-GCM
 2. **API Keys** — Hashed using HMAC-SHA256 in database mode
 3. **Rate Limiting** — Tier-aware with Redis support for distributed deployments
@@ -356,6 +359,22 @@ npm run test:hitl
 - [Improvements](./IMPROVEMENTS.md) — Planned enhancements
 - [Self-Hosted Guide](./agent-wallet-service/SELF_HOSTED.md) — Deployment guide
 
+## 🧭 Open Source vs Paid (Open-Core Boundary)
+
+Claw Wallet uses a practical open-core model.
+
+### Open Source (this repo)
+- Core SDK/client functionality (JavaScript + Python)
+- Core wallet service APIs and policy baseline
+- Basic self-host deployment artifacts (Docker + local deployment docs)
+
+### Paid / Commercial
+- Managed cloud control plane
+- Enterprise policy and compliance modules
+- SLA-backed operations, advanced analytics, and hosted governance tooling
+
+For full boundary details, see [OPEN_CORE_STRATEGY.md](OPEN_CORE_STRATEGY.md) and [GOVERNANCE.md](GOVERNANCE.md).
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
@@ -368,7 +387,7 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## 🦞 Built by Mr. Claw
 
