@@ -231,6 +231,8 @@ node cli.js demo
 ```
 GET    /                                 Service metadata
 GET    /health                           Health + features + endpoint index
+GET    /dashboard                        Dashboard metadata + links
+GET    /onboarding                       Onboarding metadata + examples
 POST   /api-keys                         Create API key (admin)
 GET    /api-keys                         List API keys (admin)
 DELETE /api-keys/:prefix                 Revoke API key (admin)

@@ -97,6 +97,7 @@ async function main() {
 
     console.log('📋 Running wallet tests...');
     await runNodeScript('tests/test-wallet.js', testEnv);
+    await runNodeScript('tests/test-metadata-version.js', testEnv);
     console.log('');
 
     console.log('📋 Running auth tests...');
