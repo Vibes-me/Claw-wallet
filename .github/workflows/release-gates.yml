@@ -1,0 +1,59 @@
+name: Release Gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            agent-wallet-service/package-lock.json
+            agent-wallet-service-dashboard/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Gate 1 - Install dependencies (agent-wallet-service)
+        working-directory: agent-wallet-service
+        run: npm ci
+
+      - name: Gate 2 - Test (agent-wallet-service)
+        working-directory: agent-wallet-service
+        run: npm test
+
+      - name: Gate 1 - Install dependencies (dashboard)
+        working-directory: agent-wallet-service-dashboard
+        run: npm ci
+
+      - name: Gate 2 - Build (dashboard)
+        working-directory: agent-wallet-service-dashboard
+        run: npm run build
+
+      - name: Gate 1 - Install dependencies (python)
+        working-directory: agent-wallet-service-python
+        run: python -m pip install -e .
+
+      - name: Gate 2 - Python smoke checks
+        working-directory: agent-wallet-service-python
+        run: |
+          python - <<'PY'
+          from claw_wallet import WalletClient
+          print('smoke-ok', WalletClient.__name__)
+          PY
