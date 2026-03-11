@@ -104,10 +104,27 @@ async function authRequest(path, options = {}, apiKey) {
 
 async function testBurst(apiKey) {
   console.log('\n🔥 Burst pattern test...');
-  const burstSize = 20;
-  const results = await Promise.all(
-    Array.from({ length: burstSize }, () => authRequest('/api-keys', {}, apiKey))
-  );
+  const probe = await authRequest('/api-keys', {}, apiKey);
+  const limitHeader = Number(probe.response.headers.get('ratelimit-limit'));
+  const remainingHeader = Number(probe.response.headers.get('ratelimit-remaining'));
+
+  if (!Number.isFinite(limitHeader) || !Number.isFinite(remainingHeader)) {
+    throw new Error('Unable to determine active rate limit from response headers.');
+  }
+
+  const burstSize = Math.max(remainingHeader + 10, 25);
+  const results = [probe];
+  const batchSize = 100;
+  let requestsRemaining = burstSize;
+
+  while (requestsRemaining > 0) {
+    const currentBatchSize = Math.min(batchSize, requestsRemaining);
+    const batchResults = await Promise.all(
+      Array.from({ length: currentBatchSize }, () => authRequest('/api-keys', {}, apiKey))
+    );
+    results.push(...batchResults);
+    requestsRemaining -= currentBatchSize;
+  }
 
   const limited = results.filter(({ response }) => response.status === 429);
   if (limited.length === 0) {
@@ -120,10 +137,10 @@ async function testBurst(apiKey) {
     throw new Error(`Rate-limit observability fields missing on 429 payload: ${JSON.stringify(body)}`);
   }
 
-  const limitHeader = sample.response.headers.get('ratelimit-limit');
-  const remainingHeader = sample.response.headers.get('ratelimit-remaining');
+  const limitedHeader = sample.response.headers.get('ratelimit-limit');
+  const remainingLimitedHeader = sample.response.headers.get('ratelimit-remaining');
   const resetHeader = sample.response.headers.get('ratelimit-reset');
-  if (!limitHeader || !remainingHeader || !resetHeader) {
+  if (!limitedHeader || !remainingLimitedHeader || !resetHeader) {
     throw new Error('Expected standard rate-limit headers were not present on 429 response.');
   }
 
