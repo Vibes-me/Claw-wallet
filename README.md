@@ -72,6 +72,40 @@ claw-wallet/
 - (Optional) PostgreSQL for persistent storage
 - (Optional) Redis for distributed rate limiting
 
+## ✅ How to run release checks locally
+
+Run gates in order and stop on first failure.
+
+```bash
+# 1) agent-wallet-service install + test
+cd agent-wallet-service
+npm ci
+npm test
+
+# 2) dashboard install + build gate
+cd ../agent-wallet-service-dashboard
+npm ci
+npm run build
+
+# 3) python SDK install + smoke gate
+cd ../agent-wallet-service-python
+python -m pip install -e .
+python - <<'PY'
+from claw_wallet import WalletClient
+print('smoke-ok', WalletClient.__name__)
+PY
+
+# 4) security gate examples
+cd ../agent-wallet-service
+npm audit --audit-level=high
+cd ../agent-wallet-service-dashboard
+npm audit --audit-level=high
+cd ../agent-wallet-service-python
+python -m pip check
+```
+
+Reference: `RELEASE_CHECKLIST.md` and `.github/workflows/release-gates.yml`.
+
 ### 1. Install Dependencies
 
 ```bash
