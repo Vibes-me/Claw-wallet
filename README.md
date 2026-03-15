@@ -1,67 +1,71 @@
-# 🦞 Claw Wallet
+<p align="center">
+  <img src="docs/images/claw-mascot.png" alt="Claw Wallet Mascot" width="200" />
+</p>
 
-**Stripe for AI Agent Wallets** — Add wallet functionality to any AI agent in seconds.
+<h1 align="center">🦞 Claw Wallet</h1>
 
-Claw Wallet is a multi-chain wallet service designed specifically for AI agents. It provides a simple HTTP API and SDKs for creating wallets, managing identities, executing transactions, and enforcing spending policies — all without touching blockchain SDKs or managing private keys.
+<p align="center">
+  <strong>Stripe for AI Agent Wallets</strong> — Add wallet functionality to any AI agent in seconds.
+</p>
+
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-api-examples">API Examples</a> •
+  <a href="#-python-sdk">Python SDK</a> •
+  <a href="#-documentation">Docs</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen" alt="Node.js" />
+  <img src="https://img.shields.io/badge/python-%3E%3D3.8-blue" alt="Python" />
+  <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License" />
+  <img src="https://img.shields.io/badge/chains-10%2B-purple" alt="Chains" />
+</p>
+
+---
+
+<p align="center">
+  <img src="docs/images/how-it-works-comic.png" alt="How Claw Wallet Works" width="100%" />
+</p>
+
+## 🤔 Why Claw Wallet?
+
+**The Problem:** AI agents need wallets, but setting up blockchain infrastructure is painful:
+- Managing private keys securely 🔐
+- Supporting multiple chains 🔗
+- Handling transaction signing ✍️
+- Implementing spending policies 🛡️
+- Building everything from scratch 🏗️
+
+**The Solution:** Claw Wallet gives your AI agents instant access to multi-chain wallets through a simple HTTP API.
+
+<p align="center">
+  <img src="docs/images/ai-agent-comic.png" alt="AI Agent using Claw Wallet" width="400" />
+</p>
+
+> *"Managing private keys? Just use Claw Wallet API!"* 🦞
+
+<p align="center">
+  <img src="docs/images/drake-meme-comic.png" alt="Claw Wallet Meme" width="300" />
+</p>
+
+---
 
 ## ✨ Features
 
-- 🔗 **Multi-Chain Support** — Ethereum, Base, Polygon, Optimism, Arbitrum, Solana, Sui, Aptos, Starknet, zkSync
-- 🆔 **ERC-8004 Agent Identity** — On-chain identity for AI agents with W3C Verifiable Credentials
-- 🔐 **API Key Authentication** — Role-based permissions with tiered rate limiting
-- 🛡️ **Policy Engine** — Spending limits, recipient allowlists, and Human-in-the-Loop approvals
-- 🔌 **MCP Server** — Model Context Protocol integration for AI assistants
-- 📊 **Dashboard UI** — React-based management interface
-- 🐍 **Python SDK** — Full-featured Python client
+| Feature | Description |
+|---------|-------------|
+| 🔗 **Multi-Chain** | Ethereum, Base, Polygon, Optimism, Arbitrum, Solana, Sui, Aptos, Starknet, zkSync |
+| 🆔 **ERC-8004 Identity** | On-chain identity for AI agents with W3C Verifiable Credentials |
+| 🔐 **API Key Auth** | Role-based permissions with tiered rate limiting |
+| 🛡️ **Policy Engine** | Spending limits, recipient allowlists, Human-in-the-Loop approvals |
+| 🔌 **MCP Server** | Model Context Protocol integration for AI assistants |
+| 📊 **Dashboard UI** | React-based management interface |
+| 🐍 **Python SDK** | Full-featured Python client with LangChain support |
+| 🔔 **WebSocket** | Real-time transaction notifications |
 
-## 📁 Project Structure
-
-```
-claw-wallet/
-├── agent-wallet-service/          # Main Node.js backend service
-│   ├── src/
-│   │   ├── index.js              # Express server entry point
-│   │   ├── routes/               # API route handlers
-│   │   │   ├── wallet.js         # Wallet CRUD & transactions
-│   │   │   ├── identity.js       # ERC-8004 identity management
-│   │   │   ├── ens.js            # ENS registration & resolution
-│   │   │   ├── multisig.js       # Multi-signature wallets
-│   │   │   ├── defi.js           # DeFi integrations
-│   │   │   ├── webhooks.js       # Webhook management
-│   │   │   ├── chains.js         # Chain-specific operations
-│   │   │   ├── agents.js         # Agent economy
-│   │   │   ├── explorer.js       # Transaction explorer
-│   │   │   └── social.js         # Social identity links
-│   │   ├── services/             # Business logic
-│   │   │   ├── viem-wallet.js    # Core wallet operations
-│   │   │   ├── agent-identity.js # ERC-8004 implementation
-│   │   │   ├── policy-engine.js  # Spending policies
-│   │   │   ├── chain-manager.js  # Multi-chain coordination
-│   │   │   └── ...
-│   │   ├── middleware/           # Express middleware
-│   │   │   ├── auth.js           # API key auth & rate limiting
-│   │   │   ├── validation.js     # Zod schema validation
-│   │   │   └── rpc-access.js     # BYO RPC handling
-│   │   └── repositories/         # Data access layer
-│   ├── tests/                    # Test suites
-│   ├── migrations/               # Database migrations
-│   ├── Dockerfile                # Docker configuration
-│   └── docker-compose.yml        # Local development setup
-│
-├── agent-wallet-service-python/   # Python SDK
-│   └── claw_wallet/
-│       ├── client.py             # Main API client
-│       ├── models.py             # Data models
-│       ├── exceptions.py         # Custom exceptions
-│       └── langchain/            # LangChain integration
-│
-├── agent-wallet-service-dashboard/ # React Dashboard UI
-│   └── src/
-│       ├── App.jsx               # Main dashboard component
-│       └── styles.css            # Styling
-│
-└── agent-wallet-service-src/      # Alternative source layout
-```
+---
 
 ## 🚀 Quick Start
 
@@ -72,50 +76,17 @@ claw-wallet/
 - (Optional) PostgreSQL for persistent storage
 - (Optional) Redis for distributed rate limiting
 
-## ✅ How to run release checks locally
-
-Run gates in order and stop on first failure.
+### 1. Install & Run
 
 ```bash
-# 1) agent-wallet-service install + test
-cd agent-wallet-service
-npm ci
-npm test
+# Clone the repo
+git clone https://github.com/Vibes-me/Claw-wallet.git
+cd Claw-wallet/agent-wallet-service
 
-# 2) dashboard install + build gate
-cd ../agent-wallet-service-dashboard
-npm ci
-npm run build
-
-# 3) python SDK install + smoke gate
-cd ../agent-wallet-service-python
-python -m pip install -e .
-python - <<'PY'
-from claw_wallet import WalletClient
-print('smoke-ok', WalletClient.__name__)
-PY
-
-# 4) security gate examples
-cd ../agent-wallet-service
-npm audit --audit-level=high
-cd ../agent-wallet-service-dashboard
-npm audit --audit-level=high
-cd ../agent-wallet-service-python
-python -m pip check
-```
-
-Reference: `RELEASE_CHECKLIST.md` and `.github/workflows/release-gates.yml`.
-
-### 1. Install Dependencies
-
-```bash
-cd agent-wallet-service
+# Install dependencies
 npm install
-```
 
-### 2. Start the Service
-
-```bash
+# Start the service
 npm start
 ```
 
@@ -123,96 +94,284 @@ The service will:
 - Start on port 3000 (configurable via `PORT`)
 - Generate an admin API key on first run
 - Print the key prefix (e.g., `sk_live_abc123...`)
-- Enable WebSocket server at `/ws`
 
-### 3. Get Your API Key
+### 2. Get Your API Key
 
 ```bash
-# Option A: Read from the generated file
-node -e "console.log(JSON.parse(require('fs').readFileSync('api-keys.json','utf8'))[0].key)"
-
-# Option B: Set SHOW_BOOTSTRAP_SECRET=true to print full key
+# Option A: Show full key on startup
 SHOW_BOOTSTRAP_SECRET=true npm start
+
+# Option B: Read from generated file
+node -e "console.log(JSON.parse(require('fs').readFileSync('api-keys.json','utf8'))[0].key)"
 ```
 
-### 4. Create Your First Wallet
+### 3. Create Your First Wallet
 
 ```bash
 curl -X POST http://localhost:3000/wallet/create \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"agentName":"MyFirstAgent","chain":"base-sepolia"}'
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "agentName": "MyFirstAgent",
+    "chain": "base-sepolia"
+  }'
 ```
 
-## 🔌 WebSocket Real-Time Updates
+**Response:**
+```json
+{
+  "wallet": {
+    "id": "wallet_1710123456789_abc123def",
+    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f8bE21",
+    "chain": "base-sepolia",
+    "agentName": "MyFirstAgent",
+    "createdAt": "2024-03-11T00:00:00.000Z"
+  }
+}
+```
 
-Claw Wallet supports WebSocket connections for real-time notifications.
+---
 
-### Connection
+## 📖 API Examples
+
+### 🔑 Authentication
+
+All API requests require an API key in the `X-API-Key` header:
+
+```bash
+curl http://localhost:3000/wallet/list \
+  -H "X-API-Key: sk_live_YOUR_KEY"
+```
+
+### 💰 Create a Wallet
+
+```bash
+# Create wallet on Base Sepolia (testnet)
+curl -X POST http://localhost:3000/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "agentName": "TradingBot",
+    "chain": "base-sepolia"
+  }'
+
+# Create wallet on Ethereum mainnet
+curl -X POST http://localhost:3000/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "agentName": "VaultKeeper",
+    "chain": "ethereum"
+  }'
+
+# Create wallet on Solana
+curl -X POST http://localhost:3000/wallet/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "agentName": "SolanaBot",
+    "chain": "solana-devnet"
+  }'
+```
+
+### 💵 Check Balance
+
+```bash
+# Get ETH balance
+curl http://localhost:3000/wallet/0x742d35.../balance \
+  -H "X-API-Key: sk_live_YOUR_KEY"
+
+# Response
+{
+  "address": "0x742d35...",
+  "balance": {
+    "eth": "0.05",
+    "wei": "50000000000000000"
+  },
+  "chain": "base-sepolia"
+}
+```
+
+### 📤 Send Transaction
+
+```bash
+curl -X POST http://localhost:3000/wallet/0x742d35.../send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -H "X-RPC-URL: https://base-sepolia.g.alchemy.com/v2/YOUR_KEY" \
+  -d '{
+    "to": "0xRecipientAddress...",
+    "value": "0.001"
+  }'
+
+# Response
+{
+  "hash": "0xabc123...",
+  "from": "0x742d35...",
+  "to": "0xRecipientAddress...",
+  "value": "0.001",
+  "chain": "base-sepolia",
+  "status": "pending"
+}
+```
+
+### 🆔 Create Agent Identity (ERC-8004)
+
+```bash
+curl -X POST http://localhost:3000/identity/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "walletAddress": "0x742d35...",
+    "agentName": "TradingBot",
+    "description": "An AI trading agent",
+    "agentType": "assistant"
+  }'
+
+# Response
+{
+  "identity": {
+    "id": "agent:base-sepolia:0x742d35...",
+    "address": "0x742d35...",
+    "agentName": "TradingBot",
+    "description": "An AI trading agent",
+    "createdAt": "2024-03-11T00:00:00.000Z"
+  }
+}
+```
+
+### 🛡️ Set Spending Policy
+
+```bash
+curl -X PUT http://localhost:3000/wallet/policy/0x742d35... \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_live_YOUR_KEY" \
+  -d '{
+    "maxTransactionValue": "0.1",
+    "dailyLimit": "1.0",
+    "allowedRecipients": ["0xAllowed1...", "0xAllowed2..."],
+    "requireApproval": true
+  }'
+```
+
+### 📡 WebSocket Real-Time Updates
 
 ```javascript
 const ws = new WebSocket('ws://localhost:3000/ws');
 
 ws.onopen = () => {
-  // Authenticate with API key
+  // Authenticate
   ws.send(JSON.stringify({
     type: 'auth',
     data: { apiKey: 'sk_live_...' }
   }));
   
-  // Subscribe to wallet updates
+  // Subscribe to wallet events
   ws.send(JSON.stringify({
     type: 'subscribe',
-    data: { walletAddress: '0x...' }
+    data: { walletAddress: '0x742d35...' }
   }));
 };
 
 ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  console.log('Event:', message.type, message.data);
+  const msg = JSON.parse(event.data);
+  console.log('Event:', msg.type, msg.data);
 };
+
+// Events: tx:pending, tx:confirmed, tx:failed, 
+//         wallet:created, approval:required, etc.
 ```
 
-### Event Types
+### 📋 List All Supported Chains
 
-| Event | Description |
-|-------|-------------|
-| `tx:pending` | Transaction submitted to network |
-| `tx:confirmed` | Transaction confirmed on chain |
-| `tx:failed` | Transaction failed |
-| `wallet:created` | New wallet created |
-| `wallet:imported` | Wallet imported |
-| `wallet:balance_updated` | Balance changed |
-| `approval:required` | HITL approval needed |
-| `approval:approved` | Transaction approved |
-| `approval:rejected` | Transaction rejected |
+```bash
+curl http://localhost:3000/wallet/chains \
+  -H "X-API-Key: sk_live_YOUR_KEY"
 
-### Example Event
-
-```json
+# Response
 {
-  "type": "tx:pending",
-  "data": {
-    "hash": "0x...",
-    "walletAddress": "0x...",
-    "to": "0x...",
-    "value": "0.001",
-    "chain": "base-sepolia",
-    "status": "pending",
-    "timestamp": "2024-01-01T00:00:00.000Z"
-  }
+  "chains": [
+    { "id": "ethereum", "name": "Ethereum", "testnet": false },
+    { "id": "base", "name": "Base", "testnet": false },
+    { "id": "base-sepolia", "name": "Base Sepolia", "testnet": true },
+    { "id": "solana-devnet", "name": "Solana Devnet", "testnet": true },
+    ...
+  ]
 }
 ```
 
-### WebSocket Stats
+---
+
+## 🐍 Python SDK
+
+### Installation
 
 ```bash
-curl http://localhost:3000/ws
+pip install claw-wallet
 ```
 
-Returns connection stats and available events.
+### Basic Usage
 
-## 🔌 API Endpoints
+```python
+from claw_wallet import WalletClient
+
+# Initialize client
+client = WalletClient(
+    api_key="sk_live_...",
+    base_url="http://localhost:3000"
+)
+
+# Create a wallet
+wallet = client.create_wallet("MyAgent", chain="base-sepolia")
+print(f"Created: {wallet.address}")
+
+# Check balance
+balance = client.get_balance(wallet.address)
+print(f"Balance: {balance.eth} ETH")
+
+# Send transaction
+tx = client.send_transaction(
+    from_address=wallet.address,
+    to_address="0xRecipient...",
+    value_eth="0.001"
+)
+print(f"TX: {tx.hash}")
+
+# Create agent identity
+identity = client.create_identity(
+    wallet_address=wallet.address,
+    agent_name="MyAgent",
+    description="An AI assistant"
+)
+print(f"Identity: {identity.id}")
+```
+
+### LangChain Integration
+
+```python
+from claw_wallet.langchain import ClawWalletTool
+from langchain.agents import initialize_agent
+
+# Create wallet tool for LangChain agent
+wallet_tool = ClawWalletTool(
+    api_key="sk_live_...",
+    base_url="http://localhost:3000"
+)
+
+# Add to your LangChain agent
+agent = initialize_agent(
+    tools=[wallet_tool],
+    llm=your_llm,
+    agent="zero-shot-react-description"
+)
+
+# Agent can now create wallets and send transactions!
+agent.run("Create a wallet on Base Sepolia and show me the address")
+```
+
+---
+
+## 🔌 API Reference
 
 ### Core Endpoints
 
@@ -254,33 +413,7 @@ Returns connection stats and available events.
 | `PUT` | `/wallet/policy/:address` | Set policy |
 | `POST` | `/wallet/policy/:address/evaluate` | Test policy |
 
-## 🐍 Python SDK
-
-```python
-from claw_wallet import WalletClient
-
-# Initialize client
-client = WalletClient(
-    api_key="sk_live_...",
-    base_url="http://localhost:3000"
-)
-
-# Create a wallet
-wallet = client.create_wallet("MyAgent", chain="base-sepolia")
-print(f"Created: {wallet.address}")
-
-# Check balance
-balance = client.get_balance(wallet.address)
-print(f"Balance: {balance.eth} ETH")
-
-# Send transaction
-tx = client.send_transaction(
-    from_address=wallet.address,
-    to_address="0x...",
-    value_eth="0.001"
-)
-print(f"TX: {tx.hash}")
-```
+---
 
 ## ⚙️ Configuration
 
@@ -295,20 +428,17 @@ print(f"TX: {tx.hash}")
 | `ALCHEMY_API_KEY` | Alchemy API key | - |
 | `API_KEY_HASH_SECRET` | Key hashing secret | (random in dev) |
 | `STORAGE_BACKEND` | Storage mode (`json`/`db`) | `json` |
-| `AUTH_BACKEND` | Auth storage mode | `json` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | `60000` |
-| `RATE_LIMIT_MAX_POINTS_FREE` | Free tier limit | `100` |
-| `RATE_LIMIT_MAX_POINTS_PRO` | Pro tier limit | `300` |
-| `RATE_LIMIT_MAX_POINTS_ENTERPRISE` | Enterprise limit | `1000` |
 | `ENABLE_MCP` | Enable MCP server | `true` |
 
 ### Tiers & Rate Limits
 
-| Tier | Points/Min | RPC Mode |
-|------|------------|----------|
-| `tier:free` | 100 | BYO RPC required |
-| `tier:pro` | 300 | Managed RPC |
-| `tier:enterprise` | 1000 | Managed RPC |
+| Tier | Points/Min | RPC Mode | Permissions |
+|------|------------|----------|-------------|
+| `tier:free` | 100 | BYO RPC | `read`, `write` |
+| `tier:pro` | 300 | Managed | `read`, `write` |
+| `tier:enterprise` | 1000 | Managed | `read`, `write`, `admin` |
+
+---
 
 ## 🐳 Docker Deployment
 
@@ -317,15 +447,18 @@ print(f"TX: {tx.hash}")
 cd agent-wallet-service
 docker build -t claw-wallet .
 
-# Run
+# Run with environment variables
 docker run -p 3000:3000 \
-  -e DATABASE_URL=postgresql://... \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/db \
   -e API_KEY_HASH_SECRET=your-secret \
+  -e ALCHEMY_API_KEY=your-key \
   claw-wallet
 
 # Or with docker-compose
 docker-compose up -d
 ```
+
+---
 
 ## 🧪 Testing
 
@@ -338,57 +471,97 @@ npm run test:wallet
 npm run test:auth
 npm run test:policy
 npm run test:hitl
+npm run test:rate-limit
 ```
 
-## 🛡️ Security Considerations
+---
+
+## 🛡️ Security
 
 For coordinated vulnerability disclosure, see [SECURITY.md](SECURITY.md).
 
+| Feature | Implementation |
+|---------|----------------|
+| Private Keys | Encrypted at rest using AES-256-GCM |
+| API Keys | Hashed using HMAC-SHA256 in database mode |
+| Rate Limiting | Tier-aware with Redis support |
+| BYO RPC | Whitelisted hosts only |
+| Policy Engine | Per-transaction and daily spending limits |
+| HITL | Human-in-the-Loop for high-value approvals |
 
-1. **Private Keys** — Encrypted at rest using AES-256-GCM
-2. **API Keys** — Hashed using HMAC-SHA256 in database mode
-3. **Rate Limiting** — Tier-aware with Redis support for distributed deployments
-4. **BYO RPC** — Whitelisted hosts only (configurable via `BYO_RPC_ALLOWED_HOSTS`)
-5. **Policy Engine** — Per-transaction and daily spending limits
-6. **HITL** — Human-in-the-Loop approval for high-value transactions
+---
 
-## 📚 Documentation
+## 📁 Project Structure
 
-- [Backend README](./agent-wallet-service/README.md) — Detailed API documentation
-- [Code Review](./CODE_REVIEW.md) — Known issues and fixes
-- [Improvements](./IMPROVEMENTS.md) — Planned enhancements
-- [Self-Hosted Guide](./agent-wallet-service/SELF_HOSTED.md) — Deployment guide
+```
+claw-wallet/
+├── agent-wallet-service/          # Main Node.js backend
+│   ├── src/
+│   │   ├── index.js              # Express server
+│   │   ├── routes/               # API handlers
+│   │   ├── services/             # Business logic
+│   │   ├── middleware/           # Auth, validation
+│   │   └── repositories/         # Data access
+│   ├── tests/                    # Test suites
+│   └── Dockerfile
+│
+├── agent-wallet-service-python/   # Python SDK
+│   └── claw_wallet/
+│       ├── client.py
+│       ├── models.py
+│       └── langchain/
+│
+├── agent-wallet-service-dashboard/ # React Dashboard
+│   └── src/
+│
+└── docs/                          # Documentation & images
+    └── images/
+```
 
-## 🧭 Open Source vs Paid (Open-Core Boundary)
+---
 
-Claw Wallet uses a practical open-core model.
+## 🧭 Open Source vs Paid
 
 ### Open Source (this repo)
-- Core SDK/client functionality (JavaScript + Python)
-- Core wallet service APIs and policy baseline
-- Basic self-host deployment artifacts (Docker + local deployment docs)
+- ✅ Core SDK/client functionality (JS + Python)
+- ✅ Core wallet service APIs and policy baseline
+- ✅ Basic self-host deployment artifacts
 
 ### Paid / Commercial
-- Managed cloud control plane
-- Enterprise policy and compliance modules
-- SLA-backed operations, advanced analytics, and hosted governance tooling
+- 💼 Managed cloud control plane
+- 💼 Enterprise policy and compliance modules
+- 💼 SLA-backed operations and analytics
 
-For full boundary details, see [OPEN_CORE_STRATEGY.md](OPEN_CORE_STRATEGY.md) and [GOVERNANCE.md](GOVERNANCE.md).
+See [OPEN_CORE_STRATEGY.md](OPEN_CORE_STRATEGY.md) for details.
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
 5. Open a Pull Request
+
+---
 
 ## 📄 License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE).
 
-## 🦞 Built by Mr. Claw
+---
 
-*Give your AI agents the power of secure, multi-chain wallets in seconds.*
+<p align="center">
+  <img src="docs/images/claw-mascot.png" alt="Claw Mascot" width="100" />
+</p>
+
+<p align="center">
+  <strong>🦞 Built by Mr. Claw</strong>
+</p>
+
+<p align="center">
+  <em>Give your AI agents the power of secure, multi-chain wallets in seconds.</em>
+</p>
