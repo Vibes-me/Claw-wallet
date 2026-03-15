@@ -18,10 +18,20 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@claw_wallet/claw-wallet-sdk">
+    <img src="https://img.shields.io/npm/v/@claw_wallet/claw-wallet-sdk?color=blue&label=npm" alt="npm version" />
+  </a>
+  <a href="https://pypi.org/project/claw-wallet/">
+    <img src="https://img.shields.io/pypi/v/claw-wallet?color=blue&label=PyPI" alt="PyPI version" />
+  </a>
+  <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License" />
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen" alt="Node.js" />
   <img src="https://img.shields.io/badge/python-%3E%3D3.8-blue" alt="Python" />
-  <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License" />
-  <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status" />
+</p>
+
+<p align="center">
+  <strong>Install now:</strong><br>
+  <code>npm i @claw_wallet/claw-wallet-sdk</code> &nbsp;|&nbsp; <code>pip install claw-wallet</code>
 </p>
 
 ---
@@ -198,20 +208,49 @@ We're transparent about our maturity:
 
 ---
 
-## 🚀 Quick Start
+## 📦 Installation
 
-### Prerequisites
+### Node.js / TypeScript
 
-- Node.js 18+
-- npm or bun
-- (Optional) PostgreSQL for production
-- (Optional) Redis for distributed rate limiting
+```bash
+npm i @claw_wallet/claw-wallet-sdk
+# or
+yarn add @claw_wallet/claw-wallet-sdk
+# or
+pnpm add @claw_wallet/claw-wallet-sdk
+```
 
-### 1. Install & Run
+### Python
+
+```bash
+pip install claw-wallet
+# or
+pipx install claw-wallet
+```
+
+### Self-Host (Recommended for Production)
 
 ```bash
 git clone https://github.com/Vibes-me/Claw-wallet.git
 cd Claw-wallet/agent-wallet-service
+npm install
+npm start
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+ (for self-hosting)
+- Python 3.8+ (for Python SDK)
+- (Optional) PostgreSQL for production
+- (Optional) Redis for distributed rate limiting
+
+### 1. Self-Host the Service
+
+```bash
 npm install
 npm start
 ```
@@ -312,14 +351,22 @@ ws.onmessage = (event) => {
 
 ## 🐍 Python SDK
 
+<p>
+  <a href="https://pypi.org/project/claw-wallet/">
+    <img src="https://img.shields.io/pypi/v/claw-wallet?color=blue&label=PyPI" alt="PyPI" />
+  </a>
+  <img src="https://img.shields.io/pypi/pyversions/claw-wallet.svg" alt="Python Versions" />
+</p>
+
 ```bash
-# Install
+# Install from PyPI
 pip install claw-wallet
 
-# Or from source
-git clone https://github.com/Vibes-me/Claw-wallet.git
-cd Claw-wallet/agent-wallet-service-python
-pip install -e .
+# With WebSocket support
+pip install claw-wallet[websocket]
+
+# With dev tools
+pip install claw-wallet[dev]
 ```
 
 ```python
