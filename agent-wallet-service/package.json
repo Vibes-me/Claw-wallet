@@ -1,17 +1,33 @@
 {
-  "name": "agent-wallet-service",
-  "version": "0.1.0",
-  "description": "Stripe for AI Agent Wallets \u2014 Add wallet functionality to any AI agent in seconds",
+  "name": "claw-wallet-sdk",
+  "version": "0.2.0",
+  "description": "Stripe for AI Agent Wallets — Add wallet functionality to any AI agent in seconds",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "type": "module",
   "bin": {
-    "agent-wallet": "./cli.js"
+    "claw-wallet": "./cli.js"
   },
   "exports": {
-    ".": "./src/index.js",
-    "./sdk": "./sdk.js",
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    },
+    "./sdk": {
+      "import": "./sdk.js",
+      "types": "./sdk.d.ts"
+    },
     "./cli": "./cli.js"
   },
+  "files": [
+    "src/",
+    "sdk.js",
+    "sdk.d.ts",
+    "cli.js",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
@@ -24,7 +40,7 @@
     "test:auth": "node tests/test-auth.js",
     "test:rate-limit": "node tests/test-rate-limit.js",
     "test:hitl": "node tests/test-hitl.js",
-    "prepack": "npm test",
+    "prepublishOnly": "npm test",
     "test:auth:security": "node tests/test-auth-security.js"
   },
   "keywords": [
@@ -35,14 +51,30 @@
     "ethereum",
     "base",
     "blockchain",
-    "viem"
+    "viem",
+    "solana",
+    "sui",
+    "aptos",
+    "starknet",
+    "multi-chain",
+    "ai-wallet",
+    "agent-wallet",
+    "mcp",
+    "model-context-protocol",
+    "erc-8004",
+    "agent-identity"
   ],
   "author": "Mr. Claw",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mrclaw/agent-wallet-service"
+    "url": "git+https://github.com/Vibes-me/Claw-wallet.git",
+    "directory": "agent-wallet-service"
   },
+  "bugs": {
+    "url": "https://github.com/Vibes-me/Claw-wallet/issues"
+  },
+  "homepage": "https://github.com/Vibes-me/Claw-wallet#readme",
   "dependencies": {
     "@aptos-labs/ts-sdk": "^6.2.0",
     "@coinbase/agentkit": "^0.2.3",
@@ -66,5 +98,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

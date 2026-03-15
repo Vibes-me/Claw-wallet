@@ -1,109 +1,100 @@
-# Contributing to Claw Wallet
+# 🦞 Contributing to Claw Wallet
 
-First off, thank you for considering contributing to Claw Wallet! It's people like you that make this project better for everyone.
+First off, thanks for taking the time to contribute! 🙏
 
-## 🦞 Code of Conduct
+Claw Wallet is an open-source project, and we welcome contributions from everyone. Whether you're fixing a bug, adding a feature, improving documentation, or just asking questions — you're helping make this project better.
 
-This project and everyone participating in it is governed by common sense and mutual respect. By participating, you are expected to uphold this standard. Please be respectful, inclusive, and constructive in all interactions.
+## 📜 Table of Contents
 
-## 🤔 How Can I Contribute?
+- [Code of Conduct](#code-of-conduct)
+- [How Can I Contribute?](#how-can-i-contribute)
+- [Development Setup](#development-setup)
+- [Pull Request Process](#pull-request-process)
+- [Coding Standards](#coding-standards)
+- [Community](#community)
 
-### Reporting Bugs
+---
 
-Before creating bug reports, please check the existing issues to avoid duplicates. When you create a bug report, include as many details as possible:
+## Code of Conduct
 
-- **Use a clear and descriptive title**
-- **Describe the exact steps to reproduce the problem**
-- **Provide specific examples** (code snippets, API calls, etc.)
-- **Describe the behavior you observed** and what you expected
-- **Include logs and error messages** if applicable
-- **Specify your environment**: OS, Node.js version, etc.
+This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you're expected to uphold this code. Please report unacceptable behavior to conduct@clawwallet.io.
 
-### Suggesting Enhancements
+---
 
-Enhancement suggestions are tracked as GitHub issues. When creating one:
+## How Can I Contribute?
 
-- **Use a clear and descriptive title**
-- **Provide a detailed description of the suggested enhancement**
-- **Explain why this enhancement would be useful**
-- **List any alternatives you've considered**
+### 🐛 Report Bugs
 
-### Pull Requests
+Found a bug? Please [open an issue](https://github.com/Vibes-me/Claw-wallet/issues/new?template=bug_report.md) with:
 
-1. **Fork the repo** and create your branch from `main`
-2. **Make your changes** with clear, descriptive commit messages
-3. **Add tests** if applicable
-4. **Update documentation** if needed
-5. **Ensure tests pass** locally before submitting
+- A clear title and description
+- Steps to reproduce
+- Expected vs actual behavior
+- Your environment (Node.js version, OS, etc.)
 
-## 🛠️ Development Setup
+### 💡 Suggest Features
+
+Have an idea? [Open a feature request](https://github.com/Vibes-me/Claw-wallet/issues/new?template=feature_request.md) with:
+
+- A clear description of the feature
+- Why it would be useful
+- Possible implementation approach (if you have one)
+
+### 📖 Improve Documentation
+
+Documentation improvements are always welcome! This includes:
+
+- Fixing typos or unclear explanations
+- Adding examples
+- Improving API documentation
+- Translating documentation
+
+### 🔧 Submit Pull Requests
+
+We love PRs! See [Pull Request Process](#pull-request-process) below.
+
+---
+
+## Development Setup
 
 ### Prerequisites
 
 - Node.js 18+
 - npm or bun
-- Python 3.8+ (for SDK development)
-- PostgreSQL (optional, for DB backend testing)
-- Redis (optional, for distributed rate limiting)
+- Git
+- (Optional) PostgreSQL
+- (Optional) Redis
 
 ### Getting Started
 
 ```bash
-# Clone your fork
+# 1. Fork the repository on GitHub
+
+# 2. Clone your fork
 git clone https://github.com/YOUR_USERNAME/Claw-wallet.git
-cd Claw-wallet
+cd Claw-wallet/agent-wallet-service
 
-# Install backend dependencies
-cd agent-wallet-service
+# 3. Install dependencies
 npm install
 
-# Start the service
-npm start
+# 4. Create a branch for your changes
+git checkout -b feature/my-awesome-feature
 
-# In another terminal, run tests
+# 5. Make your changes and test
 npm test
+
+# 6. Commit your changes
+git commit -m "feat: add my awesome feature"
+
+# 7. Push to your fork
+git push origin feature/my-awesome-feature
+
+# 8. Open a Pull Request
 ```
 
-### Dashboard Development
+### Running Tests
 
 ```bash
-cd agent-wallet-service-dashboard
-npm install
-npm run dev  # Starts Vite dev server on port 4173
-```
-
-### Python SDK Development
-
-```bash
-cd agent-wallet-service-python
-pip install -e ".[dev]"
-pytest -v
-```
-
-## 📁 Project Structure
-
-```
-claw-wallet/
-├── agent-wallet-service/          # Node.js backend
-│   ├── src/
-│   │   ├── index.js              # Entry point
-│   │   ├── routes/               # API routes
-│   │   ├── services/             # Business logic
-│   │   ├── middleware/           # Express middleware
-│   │   └── repositories/         # Data access
-│   └── tests/                    # Test suites
-├── agent-wallet-service-python/   # Python SDK
-├── agent-wallet-service-dashboard/ # React UI
-└── .github/                      # CI/CD config
-```
-
-## 🧪 Testing
-
-### Backend Tests
-
-```bash
-cd agent-wallet-service
-
 # Run all tests
 npm test
 
@@ -111,113 +102,168 @@ npm test
 npm run test:wallet
 npm run test:auth
 npm run test:policy
-npm run test:hitl
-```
-
-### Python Tests
-
-```bash
-cd agent-wallet-service-python
-
-# Run all tests
-pytest -v
 
 # Run with coverage
-pytest --cov=claw_wallet
+npm run test:coverage
 ```
 
-## 📝 Coding Standards
+### Code Style
 
-### JavaScript/TypeScript
+We use standard JavaScript conventions:
 
-- Use ES modules (ESM) syntax
-- Use `const` and `let` over `var`
-- Use async/await over raw Promises
-- Add JSDoc comments for public functions
-- Run `npm run lint` before committing
+```bash
+# Check code style
+npm run lint
 
-### Python
-
-- Follow PEP 8 style guide
-- Use type hints where possible
-- Write docstrings for public functions
-- Format with Black: `black claw_wallet/`
-
-### Commit Messages
-
-- Use clear, descriptive commit messages
-- Start with a type prefix:
-  - `feat:` - New feature
-  - `fix:` - Bug fix
-  - `docs:` - Documentation changes
-  - `test:` - Test additions/changes
-  - `refactor:` - Code refactoring
-  - `chore:` - Maintenance tasks
-
-Example: `feat(wallet): add support for ERC-20 token transfers`
-
-## 🌿 Branch Naming
-
-Use `<type>/<stream-description>` in lowercase kebab-case.
-
-- `feat/security-auth-hardening`
-- `fix/wallet-route-regression`
-- `chore/release-gates-ci-tuning`
-- `docs/metadata-release-notes`
-
-Allowed branch types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`.
-
-## 📋 Pull Request Checklist
-
-- [ ] Code compiles without errors
-- [ ] Tests pass locally
-- [ ] New code has test coverage
-- [ ] Documentation updated if needed
-- [ ] Commit messages follow conventions
-- [ ] PR description includes required quality gates:
-  - [ ] Risk level
-  - [ ] Test evidence
-  - [ ] Rollback plan
-  - [ ] Migration impact
-
-See `docs/ENGINEERING_PROGRAM_MANAGEMENT.md` for merge order, SLA cadence, and board workflow expectations.
-
-## ⏱️ Delivery SLA
-
-- First PR for a workstream must be opened within **24 hours** of starting work.
-- Review turnaround target is **4 hours** during working hours.
-
-If blocked, mark the item as blocked and post an unblock plan.
-
-## 🔐 Security
-
-If you discover a security vulnerability, please **DO NOT** open a public issue. Follow the coordinated disclosure process in [SECURITY.md](SECURITY.md), including private reporting to **security@clawwallet.io**.
-
-### Security Best Practices
-
-- Never commit secrets or API keys
-- Use environment variables for sensitive configuration
-- Validate all user inputs
-- Follow the principle of least privilege
-
-
-## 📄 License & Open-Core Boundaries
-
-- This repository is licensed under **Apache License 2.0** (see `LICENSE`).
-- By contributing, you agree your contributions are licensed under the same terms.
-- Product boundary expectations are documented in `OPEN_CORE_STRATEGY.md` and governance details in `GOVERNANCE.md`.
-
-## 📚 Resources
-
-- [Viem Documentation](https://viem.sh/)
-- [Express.js Guide](https://expressjs.com/en/guide/)
-- [ERC-8004 Specification](https://eips.ethereum.org/EIPS/eip-8004)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-
-## 🙏 Recognition
-
-Contributors will be recognized in our README and release notes. Thank you for making Claw Wallet better!
+# Fix style issues automatically
+npm run lint:fix
+```
 
 ---
 
-*Built with 🦞 by the Claw Wallet community*
+## Pull Request Process
+
+### Before Submitting
+
+1. **Test your changes**: Make sure all tests pass
+2. **Update documentation**: If you change behavior, update the README
+3. **Add tests**: New features should include tests
+4. **One feature per PR**: Keep PRs focused
+
+### PR Checklist
+
+- [ ] Tests pass (`npm test`)
+- [ ] Code style is correct (`npm run lint`)
+- [ ] Documentation updated (if needed)
+- [ ] Commit messages are clear
+- [ ] PR description explains the change
+
+### Commit Message Format
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add support for Avalanche chain
+fix: resolve balance calculation bug
+docs: update API examples
+test: add tests for policy engine
+refactor: simplify wallet creation logic
+chore: update dependencies
+```
+
+### Review Process
+
+1. Maintainers will review your PR
+2. We may ask for changes — this is normal!
+3. Once approved, we'll merge it
+4. Your contribution will be in the next release 🎉
+
+---
+
+## Coding Standards
+
+### JavaScript
+
+- Use ES modules (`import`/`export`)
+- Use `const` and `let`, never `var`
+- Use async/await over callbacks
+- Handle errors properly with try/catch
+- Add JSDoc comments for public functions
+
+```javascript
+/**
+ * Creates a new wallet for an AI agent
+ * @param {string} agentName - Name of the agent
+ * @param {string} chain - Blockchain to create wallet on
+ * @returns {Promise<Wallet>} The created wallet
+ */
+export async function createWallet(agentName, chain) {
+  // Implementation
+}
+```
+
+### Python (SDK)
+
+- Follow PEP 8 style guide
+- Use type hints
+- Write docstrings for all public functions
+- Use async/await for async functions
+
+```python
+async def create_wallet(
+    agent_name: str,
+    chain: str = "base-sepolia"
+) -> Wallet:
+    """Create a new wallet for an AI agent.
+    
+    Args:
+        agent_name: Name of the agent
+        chain: Blockchain to create wallet on
+        
+    Returns:
+        The created wallet object
+    """
+    pass
+```
+
+---
+
+## Project Structure
+
+```
+claw-wallet/
+├── agent-wallet-service/          # Main Node.js backend
+│   ├── src/
+│   │   ├── index.js              # Entry point
+│   │   ├── routes/               # API handlers
+│   │   ├── services/             # Business logic
+│   │   ├── middleware/           # Auth, validation
+│   │   └── repositories/         # Data access
+│   ├── tests/                    # Test suites
+│   └── docs/                     # API docs
+│
+├── agent-wallet-service-python/   # Python SDK
+│   └── claw_wallet/
+│
+└── agent-wallet-service-dashboard/ # React UI
+```
+
+---
+
+## Community
+
+### Get Help
+
+- 💬 [GitHub Discussions](https://github.com/Vibes-me/Claw-wallet/discussions) - Ask questions, share ideas
+- 🐛 [GitHub Issues](https://github.com/Vibes-me/Claw-wallet/issues) - Bug reports and feature requests
+
+### Stay Updated
+
+- ⭐ Star the repo to show your support
+- 👀 Watch the repo for updates
+- 🍴 Fork it and make it your own
+
+---
+
+## Recognition
+
+Contributors are recognized in:
+
+- Our [CONTRIBUTORS.md](CONTRIBUTORS.md) file
+- Release notes for significant contributions
+- GitHub's contributor graph
+
+---
+
+## Questions?
+
+Feel free to open a [Discussion](https://github.com/Vibes-me/Claw-wallet/discussions) or reach out:
+
+- Email: hello@clawwallet.io
+- GitHub: @Vibes-me
+
+---
+
+**Thank you for contributing! 🦞❤️**
+
+*Every contribution, no matter how small, makes a difference.*
