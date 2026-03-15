@@ -1,0 +1,45 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claw Wallet request flow diagram">
+  <style>
+    .title { font: 700 32px Inter, Segoe UI, Arial, sans-serif; fill: #0f172a; }
+    .step { font: 600 18px Inter, Segoe UI, Arial, sans-serif; fill: #0f172a; }
+    .desc { font: 500 14px Inter, Segoe UI, Arial, sans-serif; fill: #334155; }
+  </style>
+
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  <text x="60" y="60" class="title">Request Lifecycle</text>
+
+  <rect x="60" y="110" width="200" height="180" rx="16" fill="#F1F5F9" stroke="#94A3B8"/>
+  <text x="82" y="150" class="step">1) Auth Request</text>
+  <text x="82" y="178" class="desc">Agent sends API key</text>
+  <text x="82" y="202" class="desc">and action payload.</text>
+
+  <rect x="300" y="110" width="200" height="180" rx="16" fill="#EFF6FF" stroke="#60A5FA"/>
+  <text x="322" y="150" class="step">2) Validate</text>
+  <text x="322" y="178" class="desc">Key permissions,</text>
+  <text x="322" y="202" class="desc">scopes, rate limits.</text>
+
+  <rect x="540" y="110" width="200" height="180" rx="16" fill="#FEF9C3" stroke="#FACC15"/>
+  <text x="562" y="150" class="step">3) Policy Check</text>
+  <text x="562" y="178" class="desc">Spend caps,</text>
+  <text x="562" y="202" class="desc">allowlists, approvals.</text>
+
+  <rect x="780" y="110" width="200" height="180" rx="16" fill="#ECFCCB" stroke="#84CC16"/>
+  <text x="802" y="150" class="step">4) Sign + Send</text>
+  <text x="802" y="178" class="desc">Transaction signed</text>
+  <text x="802" y="202" class="desc">and broadcasted.</text>
+
+  <rect x="1020" y="110" width="140" height="180" rx="16" fill="#FCE7F3" stroke="#F472B6"/>
+  <text x="1038" y="150" class="step">5) Result</text>
+  <text x="1038" y="178" class="desc">Status + logs</text>
+  <text x="1038" y="202" class="desc">returned.</text>
+
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155" />
+    </marker>
+  </defs>
+  <line x1="260" y1="200" x2="300" y2="200" stroke="#334155" stroke-width="3" marker-end="url(#a)"/>
+  <line x1="500" y1="200" x2="540" y2="200" stroke="#334155" stroke-width="3" marker-end="url(#a)"/>
+  <line x1="740" y1="200" x2="780" y2="200" stroke="#334155" stroke-width="3" marker-end="url(#a)"/>
+  <line x1="980" y1="200" x2="1020" y2="200" stroke="#334155" stroke-width="3" marker-end="url(#a)"/>
+</svg>

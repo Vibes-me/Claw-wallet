@@ -1,0 +1,40 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claw Wallet architecture overview">
+  <style>
+    .title { font: 700 34px Inter, Segoe UI, Arial, sans-serif; fill: #0f172a; }
+    .label { font: 600 20px Inter, Segoe UI, Arial, sans-serif; fill: #0f172a; }
+    .body { font: 500 16px Inter, Segoe UI, Arial, sans-serif; fill: #334155; }
+    .small { font: 500 14px Inter, Segoe UI, Arial, sans-serif; fill: #475569; }
+  </style>
+  <rect width="1200" height="520" fill="#F8FAFC"/>
+  <text x="70" y="65" class="title">Claw Wallet — High-Level Architecture</text>
+
+  <rect x="70" y="120" width="260" height="290" rx="20" fill="#E2E8F0" stroke="#94A3B8"/>
+  <text x="100" y="165" class="label">AI Agent / App</text>
+  <text x="100" y="200" class="body">• Automation workflow</text>
+  <text x="100" y="230" class="body">• Calls REST / MCP API</text>
+  <text x="100" y="260" class="body">• Receives tx responses</text>
+
+  <rect x="470" y="90" width="300" height="340" rx="22" fill="#DBEAFE" stroke="#60A5FA"/>
+  <text x="510" y="140" class="label">Claw Wallet Service</text>
+  <text x="510" y="180" class="body">• API Key Auth</text>
+  <text x="510" y="210" class="body">• Policy Engine</text>
+  <text x="510" y="240" class="body">• Wallet Management</text>
+  <text x="510" y="270" class="body">• Signing / Broadcast</text>
+  <text x="510" y="300" class="body">• Audit & Notifications</text>
+
+  <rect x="910" y="120" width="220" height="290" rx="20" fill="#DCFCE7" stroke="#4ADE80"/>
+  <text x="945" y="165" class="label">Blockchains</text>
+  <text x="940" y="205" class="small">Ethereum / Base</text>
+  <text x="940" y="235" class="small">Polygon / Arbitrum</text>
+  <text x="940" y="265" class="small">Optimism / zkSync</text>
+  <text x="940" y="295" class="small">Solana / Sui / Aptos</text>
+
+  <line x1="330" y1="265" x2="470" y2="265" stroke="#475569" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="770" y1="265" x2="910" y2="265" stroke="#475569" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#475569"/>
+    </marker>
+  </defs>
+</svg>
